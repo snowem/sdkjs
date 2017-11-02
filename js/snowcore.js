@@ -5,6 +5,7 @@
       this.SNW_ICE = 1;
       this.SNW_CORE = 2;
       this.SNW_EVENT = 3;
+      this.SNW_SIG = 4;
 
       // ICE PUBLIC API
       this.SNW_ICE_CREATE = 1;
@@ -14,6 +15,7 @@
       this.SNW_ICE_STOP = 5;
       this.SNW_ICE_CONTROL = 6;
       this.SNW_ICE_AUTH = 7;
+      this.SNW_ICE_CALL = 8;
 
       // ICE INTERNAL API
       this.SNW_ICE_SDP = 128; 
@@ -22,6 +24,16 @@
 
       // EVENT API
       this.SNW_EVENT_ICE_CONNECTED = 1;
+      this.SNW_EVENT_PEER_JOINED = 2;
+
+      // SIG API
+      //this.SNW_SIG_AUTH = 1;
+      //this.SNW_SIG_CREATE = 2;
+      //this.SNW_SIG_CONNECT = 3;
+      this.SNW_SIG_CALL = 4;
+      this.SNW_SIG_SDP = 128; 
+      this.SNW_SIG_CANDIDATE = 129;
+      this.SNW_SIG_FIR = 130;
 
       function get_browser_info() {
          var unknown = '-';
@@ -290,6 +302,7 @@
 
    function PeerAgent(){
       this.peerId = 0; 
+      this.remoteId = 0; 
       this.channelId = 0; 
       this.name = "";
       this.isVideo = "on";
@@ -297,9 +310,11 @@
       this.remoteStream = {};
       this.localVideoEl = null;
       this.remoteVideoEl = null;
+      this.isInitiator = 0;
       this.pc = null;
       this.state = "disconnected";
       this.isPublisher = 0;
+      this.peerType = "none";
       this.wsClient = null;
       this.listeners = [];
       this.config = new SnowSDK.Config();
@@ -328,9 +343,16 @@
       this.wsClient.connect(this.config.servername,this.config.port, function() {
          console.log("websocket is connected");
       });
+
+      //FIXME: handle auth_data
+      if (this.config.auth_data == null) 
+         this.config.auth_data = "none";
+      this.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_AUTH,
+                 'auth_data':this.config.auth_data});
    }
    
    PeerAgent.prototype.listen = function(eventName, handler) {
+      console.log("listen: name=" + eventName);
       if (typeof this.listeners[eventName] === 'undefined') {
          this.listeners[eventName] = [];
       }
@@ -360,14 +382,44 @@
       } 
    }
 
+   PeerAgent.prototype.do_offer = function() {
+      var self = this;
+      function setLocalAndSendMessage(sessionDescription) {
+        //sessionDescription.sdp = preferOpus(sessionDescription.sdp);
+        console.log("setLocalAndSendMessage: peerType=" + self.peerType);
+        self.pc.setLocalDescription(sessionDescription);
+        if (self.peerType === 'p2p') {
+           self.send({'msgtype':globals.SNW_SIG,'api':globals.SNW_SIG_SDP,
+                   'id': self.peerId, 'remoteid': self.remoteId, 
+                   'sdp':sessionDescription});
+        } else {
+           self.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_SDP,
+                   'id': self.peerId, 'sdp':sessionDescription});
+        }
+      }   
+      function onError(e) {
+         console.log("failed to create sdp answer: " + e);
+      }
+      //console.log("remote sdp: " + JSON.stringify(msg));
+      //this.pc.setRemoteDescription(new RTCSessionDescription(msg));
+      this.pc.createOffer(setLocalAndSendMessage, onError, this.config.sdp_constraints);
+ 
+   }
+
    PeerAgent.prototype.do_answer = function(msg) {
       var self = this;
       function setLocalAndSendMessage(sessionDescription) {
         //sessionDescription.sdp = preferOpus(sessionDescription.sdp);
         console.log("setLocalAndSendMessage: " + self.pc);
         self.pc.setLocalDescription(sessionDescription);
-        self.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_SDP,
+        if (self.peerType === 'p2p') {
+           self.send({'msgtype':globals.SNW_SIG,'api':globals.SNW_SIG_SDP,
+                   'id': self.peerId, 'remoteid': self.remoteId, 
                    'sdp':sessionDescription});
+        } else {
+           self.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_SDP,
+                   'id': self.peerId, 'sdp':sessionDescription});
+        }
       }   
       function onError(e) {
          console.log("failed to create sdp answer: " + e);
@@ -381,22 +433,40 @@
       if (msg.type === 'offer') {
          //console.log("received offer: " + JSON.stringify(msg));
          this.do_answer(msg);
-      } else if (msg.type === 'answer') {
-         console.log("[ERROR] received answer, not handled");
+      } else if (msg.type === 'answer') { //p2p mode
+         if (this.peerType === 'p2p') {
+            //start media
+            console.log("on_remote_sdp: answer, pc=" + JSON.stringify(this.pc));
+            this.pc.setRemoteDescription(new RTCSessionDescription(msg));
+         } else {
+            console.log("[ERROR] received answer, not handled");
+         }
       } else {
          console.log("[ERROR] unknown msg: " + JSON.stringify(msg));
       }
    }
 
    PeerAgent.prototype.on_remote_candidate = function(msg) {
-      //console.log("received candidate: " + JSON.stringify(msg));
+      console.log("received candidate: " + JSON.stringify(msg));
       if (msg.type === 'candidate') {
          var candidate = new RTCIceCandidate({sdpMLineIndex:msg.label, candidate:msg.candidate});
-         console.log("received candidate, label=" + msg.label);
+         console.log("received candidate, candidate=" + JSON.stringify(candidate));
          this.pc.addIceCandidate(candidate);
       } else {
          console.log("[ERROR] unknown candidate: " + JSON.stringify(msg));
       }
+   }
+
+   PeerAgent.prototype.on_call = function(msg) {
+      //TODO: do real accept from callee's perspective
+      this.remoteId = msg.id;
+      msg.rc = 0;
+      msg.id = this.peerId
+      msg.remoteid = this.remoteId
+      this.send(msg);
+      getusermedia(this,function(agent) {
+         console.log("got media");
+      });
    }
 
    PeerAgent.prototype.send = function(msg) {
@@ -407,16 +477,66 @@
       if (msg.rc != null) {
          console.log("response from server: " + JSON.stringify(msg));
          if (msg.msgtype == globals.SNW_ICE ) {
-            if (msg.api == globals.SNW_ICE_CREATE) {
+            if (msg.api == globals.SNW_ICE_AUTH) {
                this.peerId = msg.id;
+               return;
+            }
+
+            if (msg.api == globals.SNW_ICE_CREATE) {
                this.channelId = msg.channelid;
                this.broadcast('onCreate',this);
+               return;
+            }
+
+            if (msg.api == globals.SNW_ICE_CALL) {
+               if (msg.rc === 0) {
+                  //start ice connetion here
+                  console.log("start p2p ice connection, agent=" + JSON.stringify(this));
+                  getusermedia(this,function(agent) {
+                     console.log("start p2p ice connection");
+                     agent.do_offer();
+                  });
+               }
                return;
             }
          }
          return;
       }
+
+      if (msg.msgtype == globals.SNW_SIG ) {
+         if (msg.api == globals.SNW_SIG_CANDIDATE) {
+            this.on_remote_candidate(msg.candidate);
+            return;
+         }
+         if (msg.api == globals.SNW_SIG_SDP) {
+            this.on_remote_sdp(msg.sdp);
+            return;
+         }
+         return;
+      }
+
+      if (msg.msgtype == globals.SNW_EVENT) {
+         if (msg.api == globals.SNW_EVENT_ICE_CONNECTED) {
+            console.log("ice connected (depracated version)");
+            //this.state = 'connected';
+            //this.broadcast('onIceConnected',this);
+            //this.onIceConnected();
+            return;
+         }
+         if (msg.api == globals.SNW_EVENT_PEER_JOINED) {
+            this.broadcast('onPeerJoined',msg);
+            this.onPeerJoined(msg);
+            return;
+         }
+
+         return;
+      }
+
       if (msg.msgtype == globals.SNW_ICE ) {
+         if (msg.api == globals.SNW_ICE_ID) {
+            this.peerId = msg.id;
+            return;
+         }
          if (msg.api == globals.SNW_ICE_CANDIDATE) {
             this.on_remote_candidate(msg.candidate);
             return;
@@ -425,13 +545,8 @@
             this.on_remote_sdp(msg.sdp);
             return;
          }
-         return;
-      }
-      if (msg.msgtype == globals.SNW_EVENT) {
-         if (msg.api == globals.SNW_EVENT_ICE_CONNECTED) {
-            this.state = 'connected';
-            this.broadcast('onIceConnected',this);
-            this.onIceConnected();
+         if (msg.api == globals.SNW_ICE_CALL) {
+            this.on_call(msg);
             return;
          }
          return;
@@ -450,19 +565,32 @@
         console.log('onicecandidate event: ', event);
         if (event.candidate) {
            var candidate = event.candidate.candidate;
-           //console.log("send relay address, sdpMid=", event.candidate.sdpMid);
-           //console.log("send relay address, sdpMlineIndex=", event.candidate.sdpMLineIndex);
 
-           self.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CANDIDATE, 'id': this.peerId, 
+           if (self.peerType === 'p2p') {
+              self.send({'msgtype':globals.SNW_SIG,'api':globals.SNW_SIG_CANDIDATE, 'id': self.peerId, 
+                      'remoteid': self.remoteId,
                       'candidate':{
                            type: 'candidate',
                            label: event.candidate.sdpMLineIndex,
                            id: event.candidate.sdpMid,
                            candidate: event.candidate.candidate}});
+           } else {
+              self.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CANDIDATE, 'id': self.peerId, 
+                      'candidate':{
+                           type: 'candidate',
+                           label: event.candidate.sdpMLineIndex,
+                           id: event.candidate.sdpMid,
+                           candidate: event.candidate.candidate}});
+           }
         } else {
-           console.log('End of candidates.');
-           self.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CANDIDATE,
-                       'id': this.peerId, 'candidate':{ done: true }});
+           console.log('No more candidates.');
+           if (self.peerType === 'p2p') {
+              self.send({'msgtype':globals.SNW_SIG,'api':globals.SNW_SIG_CANDIDATE,
+                       'id': self.peerId, 'remoteid': self.remoteId, 'candidate':{ done: true }});
+           } else {
+              self.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CANDIDATE,
+                       'id': self.peerId, 'candidate':{ done: true }});
+           }
         }
       }   
 
@@ -478,23 +606,30 @@
 
       function onremovestream(event) {
          console.log('Remote stream removed. Event: ', event);
-      }   
+      }
+
+      function oniceconnectionstatechange(event) {
+         console.log("ICE connection status changed : " + event.target.iceConnectionState)
+         if (event.target.iceConnectionState === "connected") {
+            self.state = 'connected';
+            self.broadcast('onIceConnected',this);
+            self.onIceConnected();
+         }
+      }
 
       this.pc.onicecandidate = onicecandidate;
       this.pc.onaddstream = onaddstream;
       this.pc.onremovestream = onremovestream;
+      this.pc.oniceconnectionstatechange = oniceconnectionstatechange;
       this.pc.addStream(stream); //FIXME
    }
 
-   function getusermedia(agent) {
+   function getusermedia(agent, onsuccess) {
       if (agent.isVideo === "off") 
          agent.config.media_constraints.video = false;
       console.log("set media constraint, info=" + JSON.stringify(agent.config.media_constraints));
       navigator.getUserMedia(agent.config.media_constraints, function(stream) {
-         console.log("get media sucessfully, id=" + agent.peerId);
-         if (!stream) {
-            return;
-         }
+         if (!stream) return;
          agent.start_stream(stream);
          agent.localStream = stream;
          if (agent.localVideoElm !== null ) {
@@ -502,11 +637,14 @@
          } else {
             console.warn("No video element for local stream");
          }
+
          //XXX: temporarily mute
          //agent.localVideoElm.muted = false;
-         agent.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CONNECT, 
-                     'channelid': agent.channelId, 'publish': agent.isPublisher, 
-                     'name': agent.name, 'id': agent.peerId});
+         //agent.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CONNECT,
+         //            'channelid': agent.channelId, 'peer_type': agent.peerType, 
+         //            'name': agent.name, 'id': agent.peerId});
+         console.log("get media sucessfully, id=" + agent.peerId);
+         onsuccess(agent);
       }, function(info) {
          console.log("failed to get media sucessfully");
       });
@@ -527,37 +665,66 @@
       else
         this.isVideo = "on";
 
-      this.remoteChannelId = config.channelid;
+      this.channelId = config.channelid;
+      if (config.peerType !== undefined)
+         this.peerType = config.peerType;
 
       this.localVideoElm = config.localVideoId;
       this.remoteVideoElm = config.remoteVideoId;
 
-      getusermedia(this);
+      if (this.peerType === "p2p") {//for p2p, delay calling getUserMedia()
+         console.log("connect: p2p mode");
+         this.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CONNECT,
+                     'channelid': this.channelId, 'peer_type': this.peerType, 
+                     'name': this.name, 'id': this.peerId});
+      } else {
+         console.log("connect: publish/play mode");
+         getusermedia(this, function(agent) {
+            agent.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CONNECT,
+                     'channelid': agent.channelId, 'peer_type': agent.peerType, 
+                     'name': agent.name, 'id': agent.peerId});
+         });
+      }
    }
 
    PeerAgent.prototype.onIceConnected = function() {
       console.log("onIceConnected: stream mode, isPublisher=" + this.isPublisher);
-      if (this.isPublisher == 1) {
-         console.log("publishing a stream");
+      //if (this.isPublisher == 1) {
+      if (this.peerType === "pub") {
+         console.log("publishing a stream, channelId=" + this.channelId);
          this.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_PUBLISH, 
                  'channelid': this.channelId, 'id': this.peerId});
-      } else {
-         console.log("playing a stream");
+      } else if (this.peerType === "pla") {
+         console.log("playing a stream, channelId=" + this.channelId);
          this.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_PLAY, 
-                 'channelid': this.remoteChannelId, 'id': this.peerId});
+                 'channelid': this.channelId, 'id': this.peerId});
+      } else {
+         console.log("p2p mode (nothing to do), channelId=" + this.channelId);
       }
+   }
+
+   PeerAgent.prototype.onPeerJoined = function(msg) {
+      console.log("onPeerJoined: msg=" + JSON.stringify(msg));
    }
 
    PeerAgent.prototype.publish = function(config) {
       console.log("publishing, config="+JSON.stringify(config));
       this.isPublisher = 1; 
+      this.peerType = "pub";
       this.connect(config);
    }
 
    PeerAgent.prototype.play = function(config) {
       console.log("playing, config="+JSON.stringify(config));
       this.isPublisher = 0; 
+      this.peerType = "pla";
       this.connect(config);
+   }
+
+   PeerAgent.prototype.call = function(remoteid) {
+      this.remoteId = remoteid;
+      this.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CALL, 
+              'channelid': this.channelId, 'id': this.peerId, 'remoteid': remoteid});
    }
 
    SnowSDK.PeerAgent = PeerAgent;

@@ -29,6 +29,7 @@ window.snowAsyncInit = function() {
          publishingPeer.createChannel({name: "demo"},onPublishChannelCreated);
          publishingPeer.listen('onPeerJoined',function(msg) {
             console.log("onPeerJoined: msg=", msg);
+            publishingPeer.call(msg.remoteid);
          });
       });
 
