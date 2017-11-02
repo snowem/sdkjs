@@ -243,16 +243,12 @@
       self.ipaddr = ipaddr;
       self.port = port;
       if ("WebSocket" in window) {
-         //console.log("WebSocket is supported by your Browser!");
-         // Let us open a web socket
          self.websocket = new WebSocket("wss://"+ipaddr+":"+port,"default");
          self.websocket.binaryType = 'blob';
          self.websocket.onopen = function(e) {
-            console.log("onopen: web socket is opened");
             self.isReady = true;
             for (var i = 0; i < self.msgs.length; i++) {
                var msg = JSON.stringify(self.msgs[i]);
-               console.log("sending queued msg, msg=" + msg);
                self.websocket.send(msg);
             }
             self.msgs = []; //reset it.
@@ -266,6 +262,8 @@
               console.log("have not defined onmessage: ", evt.data);
            }
          };
+      } else {
+         console.warn("WebSocket is not supported by your browser!");
       }
    }
 
@@ -275,18 +273,16 @@
 
    WsClient.prototype.send = function(message) {
       if (!this.isReady) {
-         console.log('[wss] store message: ', message);
          this.msgs.push(message);
          return;
       }
       if (this.websocket) {
-         console.log('[wss] sending message: ', message);
          if (typeof message === 'object') {
             message = JSON.stringify(message);
          }
          this.websocket.send(message);
       } else {
-         console.log("websocket not ready");
+         console.warn("websocket not ready");
       }
    }
 
@@ -310,10 +306,8 @@
       this.remoteStream = {};
       this.localVideoEl = null;
       this.remoteVideoEl = null;
-      this.isInitiator = 0;
       this.pc = null;
       this.state = "disconnected";
-      this.isPublisher = 0;
       this.peerType = "none";
       this.wsClient = null;
       this.listeners = [];
@@ -324,7 +318,6 @@
       var self = this;
 
       // set config
-      console.log("set config: " + JSON.stringify(config.servername));
       if (typeof config.servername === 'undefined') {
          console.error("undefined servername");
          return;
@@ -385,8 +378,6 @@
    PeerAgent.prototype.do_offer = function() {
       var self = this;
       function setLocalAndSendMessage(sessionDescription) {
-        //sessionDescription.sdp = preferOpus(sessionDescription.sdp);
-        console.log("setLocalAndSendMessage: peerType=" + self.peerType);
         self.pc.setLocalDescription(sessionDescription);
         if (self.peerType === 'p2p') {
            self.send({'msgtype':globals.SNW_SIG,'api':globals.SNW_SIG_SDP,
@@ -400,17 +391,12 @@
       function onError(e) {
          console.log("failed to create sdp answer: " + e);
       }
-      //console.log("remote sdp: " + JSON.stringify(msg));
-      //this.pc.setRemoteDescription(new RTCSessionDescription(msg));
       this.pc.createOffer(setLocalAndSendMessage, onError, this.config.sdp_constraints);
- 
    }
 
    PeerAgent.prototype.do_answer = function(msg) {
       var self = this;
       function setLocalAndSendMessage(sessionDescription) {
-        //sessionDescription.sdp = preferOpus(sessionDescription.sdp);
-        console.log("setLocalAndSendMessage: " + self.pc);
         self.pc.setLocalDescription(sessionDescription);
         if (self.peerType === 'p2p') {
            self.send({'msgtype':globals.SNW_SIG,'api':globals.SNW_SIG_SDP,
@@ -424,36 +410,31 @@
       function onError(e) {
          console.log("failed to create sdp answer: " + e);
       }
-      //console.log("remote sdp: " + JSON.stringify(msg));
       this.pc.setRemoteDescription(new RTCSessionDescription(msg));
       this.pc.createAnswer(setLocalAndSendMessage, onError, this.config.sdp_constraints);
    }
 
    PeerAgent.prototype.on_remote_sdp = function(msg) {
       if (msg.type === 'offer') {
-         //console.log("received offer: " + JSON.stringify(msg));
          this.do_answer(msg);
-      } else if (msg.type === 'answer') { //p2p mode
-         if (this.peerType === 'p2p') {
-            //start media
-            console.log("on_remote_sdp: answer, pc=" + JSON.stringify(this.pc));
+      } else if (msg.type === 'answer') { //p2p mode: answer from our offer
+         if (this.peerType === 'p2p') { 
             this.pc.setRemoteDescription(new RTCSessionDescription(msg));
          } else {
-            console.log("[ERROR] received answer, not handled");
+            console.error("received answer, not handled");
          }
       } else {
-         console.log("[ERROR] unknown msg: " + JSON.stringify(msg));
+         console.error("unknown msg: " + JSON.stringify(msg));
       }
    }
 
    PeerAgent.prototype.on_remote_candidate = function(msg) {
-      console.log("received candidate: " + JSON.stringify(msg));
       if (msg.type === 'candidate') {
          var candidate = new RTCIceCandidate({sdpMLineIndex:msg.label, candidate:msg.candidate});
          console.log("received candidate, candidate=" + JSON.stringify(candidate));
          this.pc.addIceCandidate(candidate);
       } else {
-         console.log("[ERROR] unknown candidate: " + JSON.stringify(msg));
+         console.error("unknown candidate: " + JSON.stringify(msg));
       }
    }
 
@@ -465,7 +446,7 @@
       msg.remoteid = this.remoteId
       this.send(msg);
       getusermedia(this,function(agent) {
-         console.log("got media");
+         //do nothing, wait for response from other peer.
       });
    }
 
@@ -490,10 +471,9 @@
 
             if (msg.api == globals.SNW_ICE_CALL) {
                if (msg.rc === 0) {
-                  //start ice connetion here
-                  console.log("start p2p ice connection, agent=" + JSON.stringify(this));
                   getusermedia(this,function(agent) {
-                     console.log("start p2p ice connection");
+                     //start ice connetion when receiving 
+                     // the response from other peer.
                      agent.do_offer();
                   });
                }
@@ -518,9 +498,6 @@
       if (msg.msgtype == globals.SNW_EVENT) {
          if (msg.api == globals.SNW_EVENT_ICE_CONNECTED) {
             console.log("ice connected (depracated version)");
-            //this.state = 'connected';
-            //this.broadcast('onIceConnected',this);
-            //this.onIceConnected();
             return;
          }
          if (msg.api == globals.SNW_EVENT_PEER_JOINED) {
@@ -552,7 +529,7 @@
          return;
       }
 
-      console.log("[ERROR] unknown msg: " + JSON.stringify(msg));
+      console.error("unknown msg: " + JSON.stringify(msg));
       return;
    }
 
@@ -562,7 +539,7 @@
       this.pc = new RTCPeerConnection(this.config.peerconnection_config, this.config.sdp_constraints)
 
       function onicecandidate(event) {
-        console.log('onicecandidate event: ', event);
+        //console.log('onicecandidate event: ', event);
         if (event.candidate) {
            var candidate = event.candidate.candidate;
 
@@ -625,9 +602,9 @@
    }
 
    function getusermedia(agent, onsuccess) {
-      if (agent.isVideo === "off") 
+      if (agent.isVideo === "off") {
          agent.config.media_constraints.video = false;
-      console.log("set media constraint, info=" + JSON.stringify(agent.config.media_constraints));
+      }
       navigator.getUserMedia(agent.config.media_constraints, function(stream) {
          if (!stream) return;
          agent.start_stream(stream);
@@ -646,7 +623,7 @@
          console.log("get media sucessfully, id=" + agent.peerId);
          onsuccess(agent);
       }, function(info) {
-         console.log("failed to get media sucessfully");
+         console.error("failed to get media sucessfully");
       });
    } 
 
@@ -659,7 +636,6 @@
    }
 
    PeerAgent.prototype.connect = function(config) {
-      console.log("connect config info, config="+JSON.stringify(config));
       if (config.video) 
         this.isVideo = config.video;
       else
@@ -673,12 +649,10 @@
       this.remoteVideoElm = config.remoteVideoId;
 
       if (this.peerType === "p2p") {//for p2p, delay calling getUserMedia()
-         console.log("connect: p2p mode");
          this.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CONNECT,
                      'channelid': this.channelId, 'peer_type': this.peerType, 
                      'name': this.name, 'id': this.peerId});
       } else {
-         console.log("connect: publish/play mode");
          getusermedia(this, function(agent) {
             agent.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CONNECT,
                      'channelid': agent.channelId, 'peer_type': agent.peerType, 
@@ -688,8 +662,6 @@
    }
 
    PeerAgent.prototype.onIceConnected = function() {
-      console.log("onIceConnected: stream mode, isPublisher=" + this.isPublisher);
-      //if (this.isPublisher == 1) {
       if (this.peerType === "pub") {
          console.log("publishing a stream, channelId=" + this.channelId);
          this.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_PUBLISH, 
@@ -699,7 +671,7 @@
          this.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_PLAY, 
                  'channelid': this.channelId, 'id': this.peerId});
       } else {
-         console.log("p2p mode (nothing to do), channelId=" + this.channelId);
+         //console.log("p2p mode (nothing to do), channelId=" + this.channelId);
       }
    }
 
@@ -708,15 +680,11 @@
    }
 
    PeerAgent.prototype.publish = function(config) {
-      console.log("publishing, config="+JSON.stringify(config));
-      this.isPublisher = 1; 
       this.peerType = "pub";
       this.connect(config);
    }
 
    PeerAgent.prototype.play = function(config) {
-      console.log("playing, config="+JSON.stringify(config));
-      this.isPublisher = 0; 
       this.peerType = "pla";
       this.connect(config);
    }
@@ -759,9 +727,9 @@
    };
 
    SnowSDK.broadcast = function(eventName,msg) {
-      console.log("broadcast, event=" + eventName + ", msg=" + JSON.stringify(msg));
+      //console.log("broadcast, event=" + eventName + ", msg=" + JSON.stringify(msg));
       if (!listeners[eventName]) {
-         console.log("no handler for event, name=" + JSON.stringify(eventName));
+         console.warn("no handler for event, name=" + JSON.stringify(eventName));
          return; 
       }
       for (var i = 0; i < listeners[eventName].length; i++) {
@@ -773,7 +741,6 @@
    /* ----------------  SnowSDK API --------------------------------------------*/
    SnowSDK.createPeer = function(config) {
       var agent = new SnowSDK.PeerAgent();
-      console.log("agent config: " + JSON.stringify(config));
       agent.init(config);
       return agent;
    }
