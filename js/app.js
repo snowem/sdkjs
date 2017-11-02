@@ -11,7 +11,7 @@ window.snowAsyncInit = function() {
 
       function onPublishChannelCreated(peer) {
          console.log("onCreate: publishing peer=" + JSON.stringify(peer));
-         document.getElementById("yourId").innerHTML = peer.peerId;
+         document.getElementById("yourId").innerHTML = peer.channelId;
          var settings = {
             'channelid': peer.channelId,
             'localVideoId': document.getElementById('localVideo'),

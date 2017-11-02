@@ -27,7 +27,7 @@
       this.SNW_EVENT_PEER_JOINED = 2;
 
       // SIG API
-      //this.SNW_SIG_AUTH = 1;
+      this.SNW_SIG_AUTH = 1;
       //this.SNW_SIG_CREATE = 2;
       //this.SNW_SIG_CONNECT = 3;
       this.SNW_SIG_CALL = 4;
@@ -340,7 +340,7 @@
       //FIXME: handle auth_data
       if (this.config.auth_data == null) 
          this.config.auth_data = "none";
-      this.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_AUTH,
+      this.send({'msgtype':globals.SNW_SIG,'api':globals.SNW_SIG_AUTH,
                  'auth_data':this.config.auth_data});
    }
    
@@ -458,11 +458,6 @@
       if (msg.rc != null) {
          console.log("response from server: " + JSON.stringify(msg));
          if (msg.msgtype == globals.SNW_ICE ) {
-            if (msg.api == globals.SNW_ICE_AUTH) {
-               this.peerId = msg.id;
-               return;
-            }
-
             if (msg.api == globals.SNW_ICE_CREATE) {
                this.channelId = msg.channelid;
                this.broadcast('onCreate',this);
@@ -480,10 +475,18 @@
                return;
             }
          }
+         if (msg.msgtype == globals.SNW_SIG ) {
+            if (msg.api == globals.SNW_SIG_AUTH) {
+               this.peerId = msg.id;
+               return;
+            }
+         }
          return;
       }
 
       if (msg.msgtype == globals.SNW_SIG ) {
+
+
          if (msg.api == globals.SNW_SIG_CANDIDATE) {
             this.on_remote_candidate(msg.candidate);
             return;
