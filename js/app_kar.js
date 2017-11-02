@@ -15,7 +15,7 @@ window.snowAsyncInit = function() {
          channelid = peer.channelId;
          var settings = {
             'peerType': "p2p",
-            'video': "on",
+            'video': "off",
             'recvonly': "on",
             'channelid': channelid,
             'localVideoId': null,
