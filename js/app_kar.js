@@ -15,7 +15,7 @@ window.snowAsyncInit = function() {
          channelid = peer.channelId;
          var settings = {
             'peerType': "p2p",
-            'video': "off",
+            'video': "on",
             'recvonly': "on",
             'channelid': channelid,
             'localVideoId': null,
@@ -27,16 +27,17 @@ window.snowAsyncInit = function() {
 
       isPublisher = 0;
       peer = SnowSDK.createPeer(config);
-      peer.createChannel({name: "demo"},onPlayChannelCreated);
-      peer.listen('onPeerJoined',function(msg) {
+      peer.onReady = function() {
+         peer.createChannel({name: "demo"},onPlayChannelCreated);
+         peer.listen('onPeerJoined',function(msg) {
             console.log("onPeerJoined: msg=", msg);
             peer.call(msg.remoteid);
-      });
-      peer.listen('onIceConnected',function() {
-         console.log("onIceConnected: mute micro");
-         peer.localStream.getAudioTracks()[0].enabled = false;
-      });
-
+         });
+         peer.listen('onIceConnected',function() {
+            console.log("onIceConnected: mute micro");
+            peer.localStream.getAudioTracks()[0].enabled = false;
+         });
+      }
    })
 }
 

@@ -29,7 +29,7 @@
       // SIG API
       this.SNW_SIG_AUTH = 1;
       this.SNW_SIG_CREATE = 2;
-      //this.SNW_SIG_CONNECT = 3;
+      this.SNW_SIG_CONNECT = 3;
       this.SNW_SIG_CALL = 4;
       this.SNW_SIG_SDP = 128; 
       this.SNW_SIG_CANDIDATE = 129;
@@ -280,7 +280,7 @@
          if (typeof message === 'object') {
             message = JSON.stringify(message);
          }
-         //console.log("sending msg, msg=", message);
+         console.log("sending msg, msg=", message);
          this.websocket.send(message);
       } else {
          console.warn("websocket not ready");
@@ -298,6 +298,7 @@
 
 
    function PeerAgent(){
+      this.isReady = 0;
       this.peerId = 0; 
       this.remoteId = 0; 
       this.channelId = 0; 
@@ -435,7 +436,7 @@
          console.log("received candidate, candidate=" + JSON.stringify(candidate));
          this.pc.addIceCandidate(candidate);
       } else {
-         console.error("unknown candidate: " + JSON.stringify(msg));
+         //console.error("unknown candidate: " + JSON.stringify(msg));
       }
    }
 
@@ -459,21 +460,14 @@
       if (msg.rc != null) {
          console.log("response from server: " + JSON.stringify(msg));
          if (msg.msgtype == globals.SNW_ICE ) {
-
-            if (msg.api == globals.SNW_ICE_CALL) {
-               if (msg.rc === 0) {
-                  getusermedia(this,function(agent) {
-                     //start ice connetion when receiving 
-                     // the response from other peer.
-                     agent.do_offer();
-                  });
-               }
-               return;
-            }
+            //handle ice api
          }
+
          if (msg.msgtype == globals.SNW_SIG ) {
             if (msg.api == globals.SNW_SIG_AUTH) {
                this.peerId = msg.id;
+               this.isReady = 1;
+               if (typeof this.onReady === "function") this.onReady();
                return;
             }
             if (msg.api == globals.SNW_SIG_CREATE) {
@@ -484,12 +478,27 @@
                }
             }
 
+            if (msg.api == globals.SNW_SIG_CALL) {
+               if (msg.rc === 0) {
+                  getusermedia(this,function(agent) {
+                     //start ice connetion when receiving 
+                     // the response from other peer.
+                     agent.do_offer();
+                  });
+               }
+               return;
+            }
+
+
          }
          return;
       }
 
       if (msg.msgtype == globals.SNW_SIG ) {
-
+         if (msg.api == globals.SNW_SIG_CALL) {
+            this.on_call(msg);
+            return;
+         }
          if (msg.api == globals.SNW_SIG_CANDIDATE) {
             this.on_remote_candidate(msg.candidate);
             return;
@@ -516,10 +525,6 @@
       }
 
       if (msg.msgtype == globals.SNW_ICE ) {
-         if (msg.api == globals.SNW_ICE_ID) {
-            this.peerId = msg.id;
-            return;
-         }
          if (msg.api == globals.SNW_ICE_CANDIDATE) {
             this.on_remote_candidate(msg.candidate);
             return;
@@ -528,10 +533,7 @@
             this.on_remote_sdp(msg.sdp);
             return;
          }
-         if (msg.api == globals.SNW_ICE_CALL) {
-            this.on_call(msg);
-            return;
-         }
+
          return;
       }
 
@@ -638,9 +640,9 @@
       //this.send({'msgtype':globals.SNW_ICE,
       //           'api':globals.SNW_ICE_CREATE, 
       //           'uuid': SnowSDK.Utils.uuid()});//TODO: store it in PeerAgent obj.
-      console.log("create channel");
+      console.log("create channel, peerid=" + this.peerId);
       this.send({'msgtype':globals.SNW_SIG,
-                 'api':globals.SNW_SIG_CREATE, 
+                 'api':globals.SNW_SIG_CREATE, 'id': this.peerId,
                  'uuid': SnowSDK.Utils.uuid()});//TODO: store it in PeerAgent obj.
       this.listen('onCreate',onsuccess);
    }
@@ -659,7 +661,7 @@
       this.remoteVideoElm = config.remoteVideoId;
 
       if (this.peerType === "p2p") {//for p2p, delay calling getUserMedia()
-         this.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CONNECT,
+         this.send({'msgtype':globals.SNW_SIG,'api':globals.SNW_SIG_CONNECT,
                      'channelid': this.channelId, 'peer_type': this.peerType, 
                      'name': this.name, 'id': this.peerId});
       } else {
@@ -701,7 +703,7 @@
 
    PeerAgent.prototype.call = function(remoteid) {
       this.remoteId = remoteid;
-      this.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CALL, 
+      this.send({'msgtype':globals.SNW_SIG,'api':globals.SNW_SIG_CALL, 
               'channelid': this.channelId, 'id': this.peerId, 'remoteid': remoteid});
    }
 

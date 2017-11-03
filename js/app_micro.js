@@ -12,20 +12,21 @@ window.snowAsyncInit = function() {
          console.log("onCall: peer=" + JSON.stringify(msg));
       }
 
-      $("#connectBtn").click(function() {
-         channelid = parseInt(document.getElementById("playChannelId").value);
-         var settings = {
-            'peerType': "p2p",
-            'video': "off",
-            'channelid': channelid,
-            'localVideoId': null,
-            'remoteVideoId': document.getElementById('playRemoteVideo')
-         };
-         console.log("connecting to server");
-         peer.connect(settings);
-      });
-
       peer = SnowSDK.createPeer(config);
+      peer.onReady = function() {
+         $("#connectBtn").click(function() {
+            channelid = parseInt(document.getElementById("playChannelId").value);
+            var settings = {
+               'peerType': "p2p",
+               'video': "on",
+               'channelid': channelid,
+               'localVideoId': null,
+               'remoteVideoId': document.getElementById('playRemoteVideo')
+            };
+            console.log("connecting to server");
+            peer.connect(settings);
+         });
+      }
    })
 }
 

@@ -26,11 +26,13 @@ window.snowAsyncInit = function() {
          $("#floatDiv").hide();
          $("#publishDiv").append('<div class="text-center"> Your webcam\'s channel id: <span style="color:#FF0000" id="yourId"></span></div>');
          publishingPeer = SnowSDK.createPeer(config);
-         publishingPeer.createChannel({name: "demo"},onPublishChannelCreated);
-         publishingPeer.listen('onPeerJoined',function(msg) {
-            console.log("onPeerJoined: msg=", msg);
-            publishingPeer.call(msg.remoteid);
-         });
+         publishingPeer.onReady = function() {
+            publishingPeer.createChannel({name: "demo"},onPublishChannelCreated);
+            publishingPeer.listen('onPeerJoined',function(msg) {
+               console.log("onPeerJoined: msg=", msg);
+               publishingPeer.call(msg.remoteid);
+            });
+         };
       });
 
       $("#playBtn").click(function() {
@@ -38,13 +40,15 @@ window.snowAsyncInit = function() {
          isPublisher = 0;
          $("#playBtnDiv").hide();
          playingPeer = SnowSDK.createPeer(config);
-         var settings = {
-            'channelid': channelid,
-            'localVideoId': null,
-            'remoteVideoId': document.getElementById('playRemoteVideo')
-         };
-         playingPeer.play(settings);
- 
+         playingPeer.onReady = function() {
+            var settings = {
+               'channelid': channelid,
+               'localVideoId': null,
+               'remoteVideoId': document.getElementById('playRemoteVideo')
+            };
+            playingPeer.play(settings);
+         }
+
       });
    })
 }
