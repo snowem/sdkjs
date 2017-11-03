@@ -28,7 +28,7 @@
 
       // SIG API
       this.SNW_SIG_AUTH = 1;
-      //this.SNW_SIG_CREATE = 2;
+      this.SNW_SIG_CREATE = 2;
       //this.SNW_SIG_CONNECT = 3;
       this.SNW_SIG_CALL = 4;
       this.SNW_SIG_SDP = 128; 
@@ -280,6 +280,7 @@
          if (typeof message === 'object') {
             message = JSON.stringify(message);
          }
+         //console.log("sending msg, msg=", message);
          this.websocket.send(message);
       } else {
          console.warn("websocket not ready");
@@ -458,11 +459,6 @@
       if (msg.rc != null) {
          console.log("response from server: " + JSON.stringify(msg));
          if (msg.msgtype == globals.SNW_ICE ) {
-            if (msg.api == globals.SNW_ICE_CREATE) {
-               this.channelId = msg.channelid;
-               this.broadcast('onCreate',this);
-               return;
-            }
 
             if (msg.api == globals.SNW_ICE_CALL) {
                if (msg.rc === 0) {
@@ -480,12 +476,19 @@
                this.peerId = msg.id;
                return;
             }
+            if (msg.api == globals.SNW_SIG_CREATE) {
+               if (msg.rc === 0) {
+                  this.channelId = msg.channelid;
+                  this.broadcast('onCreate',this);
+                  return;
+               }
+            }
+
          }
          return;
       }
 
       if (msg.msgtype == globals.SNW_SIG ) {
-
 
          if (msg.api == globals.SNW_SIG_CANDIDATE) {
             this.on_remote_candidate(msg.candidate);
@@ -632,8 +635,12 @@
 
    PeerAgent.prototype.createChannel =function(config,onsuccess) {
       this.name = config.name;
-      this.send({'msgtype':globals.SNW_ICE,
-                 'api':globals.SNW_ICE_CREATE, 
+      //this.send({'msgtype':globals.SNW_ICE,
+      //           'api':globals.SNW_ICE_CREATE, 
+      //           'uuid': SnowSDK.Utils.uuid()});//TODO: store it in PeerAgent obj.
+      console.log("create channel");
+      this.send({'msgtype':globals.SNW_SIG,
+                 'api':globals.SNW_SIG_CREATE, 
                  'uuid': SnowSDK.Utils.uuid()});//TODO: store it in PeerAgent obj.
       this.listen('onCreate',onsuccess);
    }
