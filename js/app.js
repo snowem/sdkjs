@@ -13,6 +13,7 @@ window.snowAsyncInit = function() {
          console.log("onCreate: publishing peer=" + JSON.stringify(peer));
          document.getElementById("yourId").innerHTML = peer.channelId;
          var settings = {
+            'h264': 1,
             'channelid': peer.channelId,
             'localVideoId': document.getElementById('localVideo'),
             'remoteVideoId': null
@@ -42,6 +43,7 @@ window.snowAsyncInit = function() {
          playingPeer = SnowSDK.createPeer(config);
          playingPeer.onReady = function() {
             var settings = {
+               'h264': 1,
                'channelid': channelid,
                'localVideoId': null,
                'remoteVideoId': document.getElementById('playRemoteVideo')

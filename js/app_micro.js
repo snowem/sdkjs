@@ -19,6 +19,7 @@ window.snowAsyncInit = function() {
             var settings = {
                'peerType': "p2p",
                'video': "on",
+               'h264': 1,
                'channelid': channelid,
                'localVideoId': null,
                'remoteVideoId': document.getElementById('playRemoteVideo')
