@@ -304,10 +304,11 @@
       this.channelId = 0; 
       this.name = "";
       this.isVideo = "on";
-      this.localStream = {};
-      this.remoteStream = {};
-      this.localVideoEl = null;
-      this.remoteVideoEl = null;
+      this.isH264 = 1;
+      this.localStream = null;
+      this.remoteStream = null;
+      this.localVideoElm = null;
+      this.remoteVideoElm = null;
       this.pc = null;
       this.state = "disconnected";
       this.peerType = "none";
@@ -347,7 +348,6 @@
    }
    
    PeerAgent.prototype.listen = function(eventName, handler) {
-      console.log("listen: name=" + eventName);
       if (typeof this.listeners[eventName] === 'undefined') {
          this.listeners[eventName] = [];
       }
@@ -447,6 +447,8 @@
       msg.id = this.peerId
       msg.remoteid = this.remoteId
       this.send(msg);
+      //FIXME: set it as parameter
+      this.isVideo = "off";
       getusermedia(this,function(agent) {
          //do nothing, wait for response from other peer.
       });
@@ -488,8 +490,6 @@
                }
                return;
             }
-
-
          }
          return;
       }
@@ -653,6 +653,9 @@
       else
         this.isVideo = "on";
 
+      if (config.h264) 
+         this.isH264 = config.h264
+
       this.channelId = config.channelid;
       if (config.peerType !== undefined)
          this.peerType = config.peerType;
@@ -662,14 +665,29 @@
 
       if (this.peerType === "p2p") {//for p2p, delay calling getUserMedia()
          this.send({'msgtype':globals.SNW_SIG,'api':globals.SNW_SIG_CONNECT,
-                     'channelid': this.channelId, 'peer_type': this.peerType, 
+                     'channelid': this.channelId, 'peer_type': this.peerType, 'h264': this.isH264,
                      'name': this.name, 'id': this.peerId});
       } else {
-         getusermedia(this, function(agent) {
-            agent.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CONNECT,
-                     'channelid': agent.channelId, 'peer_type': agent.peerType, 
+         if (config.localStream) {
+            //get media source directly
+            console.log("start local media source directly, stream=", config.localStream);
+            this.start_stream(config.localStream);
+            this.localStream = config.localStream;
+            if (this.localVideoElm !== null ) {
+               this.localVideoElm.srcObject = this.localStream;
+            } else {
+               console.warn("No video element for local stream");
+            }
+            this.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CONNECT,
+                     'channelid': this.channelId, 'peer_type': this.peerType, 'h264': this.isH264,
+                     'name': this.name, 'id': this.peerId});
+         } else {
+            getusermedia(this, function(agent) {
+               agent.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CONNECT,
+                     'channelid': agent.channelId, 'peer_type': agent.peerType, 'h264': agent.isH264,
                      'name': agent.name, 'id': agent.peerId});
-         });
+            });
+         }
       }
    }
 
@@ -703,6 +721,8 @@
 
    PeerAgent.prototype.call = function(remoteid) {
       this.remoteId = remoteid;
+      //FIXME: set it as parameters
+      this.isVideo = "off";
       this.send({'msgtype':globals.SNW_SIG,'api':globals.SNW_SIG_CALL, 
               'channelid': this.channelId, 'id': this.peerId, 'remoteid': remoteid});
    }
