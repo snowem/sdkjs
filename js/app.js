@@ -1,5 +1,15 @@
+(function(d){
+  var js, id = 'snowsdk', ref = d.getElementsByTagName('script')[0];
+  if (d.getElementById(id)) {return;}
+  js = d.createElement('script'); js.id = id; js.async = true;
+  js.src = "https://snowem.io/js/snowcore.js";
+  ref.parentNode.insertBefore(js, ref);
+}(document));
+
 window.snowAsyncInit = function() {
    SnowSDK.init(function (){
+   });
+  
       var isPublisher = 0;
       var channelid = 0;
       var publishingPeer = null;
@@ -52,6 +62,5 @@ window.snowAsyncInit = function() {
          }
 
       });
-   })
 }
 
