@@ -209,8 +209,11 @@
 // SDK configurations
 (function(window, undefined) {
    function Config() {
-      this.servername = "";
-      this.port = 0;
+      // wss settings
+      this.wss_ip = "";
+      this.wss_port = 443;
+
+      // webrtc settings
       this.media_constraints = { audio: true, 
                                 video: {
                                   mandatory:{
@@ -231,8 +234,23 @@
    }
 
    Config.prototype.init= function(config) {
-      this.servername = config.servername;
-      this.port = config.port;
+      if (typeof config === 'undefined') {
+         console.error("no config found");
+         return false;
+      }
+
+      if (typeof config.wss_ip === 'undefined') {
+         console.error("no websocket server ip found");
+         return false;
+      } else {
+         this.wss_ip = config.wss_ip;
+      }
+
+      if (typeof config.wss_port !== 'undefined') {
+         this.wss_port = config.wss_port;
+      }
+
+      return true;
    };
     
    var SnowSDK = window.SnowSDK;
@@ -309,7 +327,7 @@
    var globals = SnowSDK.Globals();
 
 
-   function PeerAgent(){
+   function PeerAgent(config){
       this.isReady = 0;
       this.peerId = 0; 
       this.remoteId = 0; 
@@ -322,22 +340,28 @@
       this.localVideoElm = null;
       this.remoteVideoElm = null;
       this.pc = null;
-      this.state = "disconnected";
+      this.ice_state = "disconnected";
       this.peerType = "none";
-      this.wsClient = null;
+
+      // websocket info
+      this.ws_client = null;
+      this.ws_connected = 0;
+      this.ws_msg_queue = [];
+
       this.listeners = [];
       this.config = new SnowSDK.Config();
+      if (this.config.init(config)) {
+        this.init();
+      }
    }
 
-   PeerAgent.prototype.init = function(config) {
+   PeerAgent.prototype.init = function() {
       var self = this;
 
-      // set config
-      if (typeof config.servername === 'undefined') {
-         console.error("undefined servername");
+      if (typeof this.config.wss_ip === 'undefined') {
+         console.error("undefined websocket server ip");
          return;
       }
-      this.config.init(config);
 
       //set up network
       function onmessage(evt) {
@@ -346,10 +370,15 @@
          self.receive(msg);
          return;
       };
-      this.wsClient = new SnowSDK.WsClient();
-      this.wsClient.setOnMessageCB(onmessage);
-      this.wsClient.connect(this.config.servername,this.config.port, function() {
+      this.ws_client = new SnowSDK.WsClient();
+      this.ws_client.setOnMessageCB(onmessage);
+      this.ws_client.connect(this.config.wss_ip,this.config.wss_port, function() {
          console.log("websocket is connected");
+         self.ws_connected = 1;
+         for (var i = 0; i < self.ws_msg_queue.length; i++) {
+            self.ws_client.send(self.ws_msg_queue[i]);
+         }
+         self.ws_msg_queue = [];
       });
 
       //FIXME: handle auth_data
@@ -467,7 +496,17 @@
    }
 
    PeerAgent.prototype.send = function(msg) {
-      this.wsClient.send(msg);
+     if (this.ws_connected) {
+       if ( this.ws_msg_queue.length > 0) {
+         for (var i = 0; i < this.ws_msg_queue.length; i++) {
+           this.ws_client.send(self.ws_msg_queue[i]);
+         }
+         this.ws_msg_queue = [];
+       }
+       this.ws_client.send(msg);
+     } else {
+       this.ws_msg_queue.push(msg);
+     }
    }
 
    PeerAgent.prototype.receive = function(msg) {
@@ -783,9 +822,8 @@
    /* ----------------  end of SnowSDK events ---------------------------------*/
 
    /* ----------------  SnowSDK API --------------------------------------------*/
-   SnowSDK.createPeer = function(config) {
-      var agent = new SnowSDK.PeerAgent();
-      agent.init(config);
+   SnowSDK.createPeer = function(conf) {
+      var agent = new SnowSDK.PeerAgent(conf);
       return agent;
    }
    /* ----------------  end of SnowSDK API --------------------------------------*/
@@ -795,7 +833,7 @@
 
 })(this);
 
-
+/* loading other stuff */
 (function (window) {
   function loadScript(url, callback) {
     var script = document.createElement('script');
@@ -835,6 +873,6 @@
     }
   }
 
-  var url = getBaseUrl("snowcore.js").replace("snowcore.js","adapter.js");
+  var url = getBaseUrl("snowsdk.js").replace("snowsdk.js","adapter.js");
   loadScript(url,loadCallback);
 })(this);
