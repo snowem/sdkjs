@@ -47,6 +47,12 @@
       this.SNW_SIG_CANDIDATE = 129;
       this.SNW_SIG_FIR = 130;
 
+      this.ACODEC_OPUS = "opus";
+      this.ACODEC_PMCU = "pmcu";
+      this.VCODEC_H264 = "h264";
+      this.VCODEC_VP8 = "vp8";
+      this.VCODEC_VP9 = "vp9";
+
       function get_browser_info() {
          var unknown = '-';
          var screenSize = '';
@@ -187,6 +193,7 @@
 
    var SnowSDK = window.SnowSDK;
    SnowSDK.Globals = Globals;
+   window.globals_ = SnowSDK.Globals();
 })(this);
 
 // SDK Utitlities
@@ -231,6 +238,20 @@
       this.sdp_constraints = {'mandatory': {
          'OfferToReceiveAudio':true,
          'OfferToReceiveVideo':true }}; 
+
+      // channel info
+      this.name = "default";
+      this.enable_video = 1; //: 0 disbale, 1: enable
+      this.audio_codec = globals_.VAUDIO_OPUS;
+      this.video_codec = globals_.VCODEC_H264;
+
+      this.local_stream = null;
+      this.remote_stream = null;
+      this.local_video_elm = null;
+      this.remote_video_elm = null;
+
+      // others
+      this.auth_data = "none";
    }
 
    Config.prototype.init= function(config) {
@@ -249,6 +270,32 @@
       if (typeof config.wss_port !== 'undefined') {
          this.wss_port = config.wss_port;
       }
+
+      if (typeof config.name !== 'undefined') {
+         this.name = config.name;
+      }
+
+      if (typeof config.enbale_video !== 'undefined') {
+         if (config.enbale_video === 0 || config.enbale_video === 1) {
+           this.enable_video = config.enable_video;
+         } else {
+           console.error("enable_video must be 0 or 1");
+           return false;
+         }
+      }
+
+      if (typeof config.video_codec !== 'undefined') {
+        if ((config.video_codec !== globals_.VCODEC_H264) &&
+            (config.video_codec !== globals_.VCODEC_VP8) &&
+            (config.video_codec !== globals_.VCODEC_VP9)) {
+          console.error("not correct video codec, choose 'h264', 'vp8' or 'vp9'");
+          return false;
+        }
+        this.video_codec = config.video_codec;
+      }
+
+      if (typeof config.auth_data !== 'undefined') 
+         this.config.auth_data = "none";
 
       return true;
    };
@@ -324,35 +371,54 @@
 // peer agent
 (function(window, undefined) {
    var SnowSDK = window.SnowSDK;
-   var globals = SnowSDK.Globals();
-
+   //var globals = SnowSDK.Globals();
 
    function PeerAgent(config){
-      this.isReady = 0;
-      this.peerId = 0; 
-      this.remoteId = 0; 
-      this.channelId = 0; 
-      this.name = "";
-      this.isVideo = "on";
-      this.isH264 = 1;
-      this.localStream = null;
-      this.remoteStream = null;
-      this.localVideoElm = null;
-      this.remoteVideoElm = null;
-      this.pc = null;
-      this.ice_state = "disconnected";
-      this.peerType = "none";
+     this.isReady = 0;
+     this.peerId = 0; 
+     this.remoteId = 0; 
+     this.channelId = 0; 
+     this.name = "";
 
-      // websocket info
-      this.ws_client = null;
-      this.ws_connected = 0;
-      this.ws_msg_queue = [];
+     this.pc = null; //TODO
+     this.ice_state = "disconnected";
+     this.peerType = "none";
 
-      this.listeners = [];
-      this.config = new SnowSDK.Config();
-      if (this.config.init(config)) {
-        this.init();
-      }
+     this.local_stream = null;
+     this.remote_stream = null;
+     this.local_video_elm = null;
+     this.remote_video_elm = null;
+     this.reset_stream(config);
+
+     // websocket info
+     this.ws_client = null;
+     this.ws_connected = 0;
+     this.ws_msg_queue = [];
+
+     this.listeners = [];
+     this.config = new SnowSDK.Config();
+     if (this.config.init(config)) {
+       this.init();
+     }
+   }
+
+   PeerAgent.prototype.reset_stream = function(config) {
+
+     if (typeof config.local_stream !== 'undefined') {
+       this.local_stream = config.local_stream;
+     }
+
+     if (typeof config.remote_stream !== 'undefined') {
+       this.remote_stream = config.remote_stream;
+     }
+
+     if (typeof config.local_video_elm !== 'undefined') {
+       this.local_video_elm = config.local_video_elm;
+     }
+
+     if (typeof config.remote_video_elm !== 'undefined') {
+       this.remote_video_elm = config.remote_video_elm;
+     }
    }
 
    PeerAgent.prototype.init = function() {
@@ -381,10 +447,7 @@
          self.ws_msg_queue = [];
       });
 
-      //FIXME: handle auth_data
-      if (this.config.auth_data == null) 
-         this.config.auth_data = "none";
-      this.send({'msgtype':globals.SNW_SIG,'api':globals.SNW_SIG_AUTH,
+      this.send({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_AUTH,
                  'auth_data':this.config.auth_data});
    }
    
@@ -423,11 +486,11 @@
       function setLocalAndSendMessage(sessionDescription) {
         self.pc.setLocalDescription(sessionDescription);
         if (self.peerType === 'p2p') {
-           self.send({'msgtype':globals.SNW_SIG,'api':globals.SNW_SIG_SDP,
+           self.send({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_SDP,
                    'id': self.peerId, 'remoteid': self.remoteId, 
                    'sdp':sessionDescription});
         } else {
-           self.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_SDP,
+           self.send({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_SDP,
                    'id': self.peerId, 'sdp':sessionDescription});
         }
       }   
@@ -442,11 +505,11 @@
       function setLocalAndSendMessage(sessionDescription) {
         self.pc.setLocalDescription(sessionDescription);
         if (self.peerType === 'p2p') {
-           self.send({'msgtype':globals.SNW_SIG,'api':globals.SNW_SIG_SDP,
+           self.send({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_SDP,
                    'id': self.peerId, 'remoteid': self.remoteId, 
                    'sdp':sessionDescription});
         } else {
-           self.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_SDP,
+           self.send({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_SDP,
                    'id': self.peerId, 'sdp':sessionDescription});
         }
       }   
@@ -488,8 +551,6 @@
       msg.id = this.peerId
       msg.remoteid = this.remoteId
       this.send(msg);
-      //FIXME: set it as parameter
-      this.isVideo = "off";
       getusermedia(this,function(agent) {
          //do nothing, wait for response from other peer.
       });
@@ -512,18 +573,18 @@
    PeerAgent.prototype.receive = function(msg) {
       if (msg.rc != null) {
          console.log("response from server: " + JSON.stringify(msg));
-         if (msg.msgtype == globals.SNW_ICE ) {
+         if (msg.msgtype == globals_.SNW_ICE ) {
             //handle ice api
          }
 
-         if (msg.msgtype == globals.SNW_SIG ) {
-            if (msg.api == globals.SNW_SIG_AUTH) {
+         if (msg.msgtype == globals_.SNW_SIG ) {
+            if (msg.api == globals_.SNW_SIG_AUTH) {
                this.peerId = msg.id;
                this.isReady = 1;
                if (typeof this.onReady === "function") this.onReady();
                return;
             }
-            if (msg.api == globals.SNW_SIG_CREATE) {
+            if (msg.api == globals_.SNW_SIG_CREATE) {
                if (msg.rc === 0) {
                   this.channelId = msg.channelid;
                   this.broadcast('onCreate',this);
@@ -531,7 +592,7 @@
                }
             }
 
-            if (msg.api == globals.SNW_SIG_CALL) {
+            if (msg.api == globals_.SNW_SIG_CALL) {
                if (msg.rc === 0) {
                   getusermedia(this,function(agent) {
                      //start ice connetion when receiving 
@@ -545,28 +606,28 @@
          return;
       }
 
-      if (msg.msgtype == globals.SNW_SIG ) {
-         if (msg.api == globals.SNW_SIG_CALL) {
+      if (msg.msgtype == globals_.SNW_SIG ) {
+         if (msg.api == globals_.SNW_SIG_CALL) {
             this.on_call(msg);
             return;
          }
-         if (msg.api == globals.SNW_SIG_CANDIDATE) {
+         if (msg.api == globals_.SNW_SIG_CANDIDATE) {
             this.on_remote_candidate(msg.candidate);
             return;
          }
-         if (msg.api == globals.SNW_SIG_SDP) {
+         if (msg.api == globals_.SNW_SIG_SDP) {
             this.on_remote_sdp(msg.sdp);
             return;
          }
          return;
       }
 
-      if (msg.msgtype == globals.SNW_EVENT) {
-         if (msg.api == globals.SNW_EVENT_ICE_CONNECTED) {
+      if (msg.msgtype == globals_.SNW_EVENT) {
+         if (msg.api == globals_.SNW_EVENT_ICE_CONNECTED) {
             console.log("ice connected (depracated version)");
             return;
          }
-         if (msg.api == globals.SNW_EVENT_PEER_JOINED) {
+         if (msg.api == globals_.SNW_EVENT_PEER_JOINED) {
             this.broadcast('onPeerJoined',msg);
             this.onPeerJoined(msg);
             return;
@@ -575,12 +636,12 @@
          return;
       }
 
-      if (msg.msgtype == globals.SNW_ICE ) {
-         if (msg.api == globals.SNW_ICE_CANDIDATE) {
+      if (msg.msgtype == globals_.SNW_ICE ) {
+         if (msg.api == globals_.SNW_ICE_CANDIDATE) {
             this.on_remote_candidate(msg.candidate);
             return;
          }
-         if (msg.api == globals.SNW_ICE_SDP) {
+         if (msg.api == globals_.SNW_ICE_SDP) {
             this.on_remote_sdp(msg.sdp);
             return;
          }
@@ -603,7 +664,7 @@
            var candidate = event.candidate.candidate;
 
            if (self.peerType === 'p2p') {
-              self.send({'msgtype':globals.SNW_SIG,'api':globals.SNW_SIG_CANDIDATE, 'id': self.peerId, 
+              self.send({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_CANDIDATE, 'id': self.peerId, 
                       'remoteid': self.remoteId,
                       'candidate':{
                            type: 'candidate',
@@ -611,7 +672,7 @@
                            id: event.candidate.sdpMid,
                            candidate: event.candidate.candidate}});
            } else {
-              self.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CANDIDATE, 'id': self.peerId, 
+              self.send({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_CANDIDATE, 'id': self.peerId, 
                       'candidate':{
                            type: 'candidate',
                            label: event.candidate.sdpMLineIndex,
@@ -621,23 +682,23 @@
         } else {
            console.log('No more candidates.');
            if (self.peerType === 'p2p') {
-              self.send({'msgtype':globals.SNW_SIG,'api':globals.SNW_SIG_CANDIDATE,
+              self.send({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_CANDIDATE,
                        'id': self.peerId, 'remoteid': self.remoteId, 'candidate':{ done: true }});
            } else {
-              self.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CANDIDATE,
+              self.send({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_CANDIDATE,
                        'id': self.peerId, 'candidate':{ done: true }});
            }
         }
       }   
 
       function onaddstream(event) {
-         console.log('Remote stream added, src:' + self.remoteVideoElm);
-         if (self.remoteVideoElm === null) {
+         console.log('Remote stream added, src:' + self.remote_video_elm);
+         if (self.remote_video_elm === null) {
             console.warn("No video element for remote stream");
             return;
          }
-         self.remoteVideoElm.srcObject = event.stream;
-         self.remoteStream = event.stream;
+         self.remote_video_elm.srcObject = event.stream;
+         self.remote_stream = event.stream;
       }   
 
       function onremovestream(event) {
@@ -661,22 +722,22 @@
    }
 
    function getusermedia(agent, onsuccess) {
-      if (agent.isVideo === "off") {
+      if (agent.enbale_video === 0) {
          agent.config.media_constraints.video = false;
       }
       navigator.getUserMedia(agent.config.media_constraints, function(stream) {
          if (!stream) return;
          agent.start_stream(stream);
-         agent.localStream = stream;
-         if (agent.localVideoElm !== null ) {
-            agent.localVideoElm.srcObject = stream;
+         agent.local_stream = stream;
+         if (agent.local_video_elm !== null ) {
+            agent.local_video_elm.srcObject = stream;
          } else {
             console.warn("No video element for local stream");
          }
 
          //XXX: temporarily mute
          //agent.localVideoElm.muted = false;
-         //agent.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CONNECT,
+         //agent.send({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_CONNECT,
          //            'channelid': agent.channelId, 'peer_type': agent.peerType, 
          //            'name': agent.name, 'id': agent.peerId});
          console.log("get media sucessfully, id=" + agent.peerId);
@@ -688,54 +749,45 @@
 
    PeerAgent.prototype.createChannel =function(config,onsuccess) {
       this.name = config.name;
-      //this.send({'msgtype':globals.SNW_ICE,
-      //           'api':globals.SNW_ICE_CREATE, 
+      //this.send({'msgtype':globals_.SNW_ICE,
+      //           'api':globals_.SNW_ICE_CREATE, 
       //           'uuid': SnowSDK.Utils.uuid()});//TODO: store it in PeerAgent obj.
       console.log("create channel, peerid=" + this.peerId);
-      this.send({'msgtype':globals.SNW_SIG,
-                 'api':globals.SNW_SIG_CREATE, 'id': this.peerId,
+      this.send({'msgtype':globals_.SNW_SIG,
+                 'api':globals_.SNW_SIG_CREATE, 'id': this.peerId,
                  'uuid': SnowSDK.Utils.uuid()});//TODO: store it in PeerAgent obj.
       this.listen('onCreate',onsuccess);
    }
 
    PeerAgent.prototype.connect = function(config) {
-      if (config.video) 
-        this.isVideo = config.video;
-      else
-        this.isVideo = "on";
-
-      if (config.h264) 
-         this.isH264 = config.h264
-
+      this.reset_stream(config);
       this.channelId = config.channelid;
+
       if (config.peerType !== undefined)
          this.peerType = config.peerType;
 
-      this.localVideoElm = config.localVideoId;
-      this.remoteVideoElm = config.remoteVideoId;
-
       if (this.peerType === "p2p") {//for p2p, delay calling getUserMedia()
-         this.send({'msgtype':globals.SNW_SIG,'api':globals.SNW_SIG_CONNECT,
-                     'channelid': this.channelId, 'peer_type': this.peerType, 'h264': this.isH264,
+         this.send({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_CONNECT,
+                     'channelid': this.channelId, 'peer_type': this.peerType, 'video_codec': this.config.video_codec,
                      'name': this.name, 'id': this.peerId});
       } else {
-         if (config.localStream) {
+         if (this.local_stream) {
             //get media source directly
-            console.log("start local media source directly, stream=", config.localStream);
-            this.start_stream(config.localStream);
-            this.localStream = config.localStream;
-            if (this.localVideoElm !== null ) {
-               this.localVideoElm.srcObject = this.localStream;
+            console.log("start local media source directly, stream=", this.local_stream);
+            this.start_stream(this.local_stream);
+            this.local_stream = this.local_stream;
+            if (this.local_video_elm !== null ) {
+               this.local_video_elm.srcObject = this.local_stream;
             } else {
                console.warn("No video element for local stream");
             }
-            this.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CONNECT,
-                     'channelid': this.channelId, 'peer_type': this.peerType, 'h264': this.isH264,
+            this.send({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_CONNECT,
+                     'channelid': this.channelId, 'peer_type': this.peerType, 'video_codec': this.config.video_codec,
                      'name': this.name, 'id': this.peerId});
          } else {
             getusermedia(this, function(agent) {
-               agent.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_CONNECT,
-                     'channelid': agent.channelId, 'peer_type': agent.peerType, 'h264': agent.isH264,
+               agent.send({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_CONNECT,
+                     'channelid': agent.channelId, 'peer_type': agent.peerType, 'video_codec': agent.config.video_codec,
                      'name': agent.name, 'id': agent.peerId});
             });
          }
@@ -745,11 +797,11 @@
    PeerAgent.prototype.onIceConnected = function() {
       if (this.peerType === "pub") {
          console.log("publishing a stream, channelId=" + this.channelId);
-         this.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_PUBLISH, 
+         this.send({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_PUBLISH, 
                  'channelid': this.channelId, 'id': this.peerId});
       } else if (this.peerType === "pla") {
          console.log("playing a stream, channelId=" + this.channelId);
-         this.send({'msgtype':globals.SNW_ICE,'api':globals.SNW_ICE_PLAY, 
+         this.send({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_PLAY, 
                  'channelid': this.channelId, 'id': this.peerId});
       } else {
          //console.log("p2p mode (nothing to do), channelId=" + this.channelId);
@@ -772,9 +824,7 @@
 
    PeerAgent.prototype.call = function(remoteid) {
       this.remoteId = remoteid;
-      //FIXME: set it as parameters
-      this.isVideo = "off";
-      this.send({'msgtype':globals.SNW_SIG,'api':globals.SNW_SIG_CALL, 
+      this.send({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_CALL, 
               'channelid': this.channelId, 'id': this.peerId, 'remoteid': remoteid});
    }
 
@@ -785,8 +835,6 @@
 // SDK API implementation
 (function(window, undefined) {
    var SnowSDK = window.SnowSDK;
-   var globals = SnowSDK.Globals();
-   //var config = SnowSDK.Config();
 
    /* ---------------- SnowSDK events ---------------------------------------*/
    var listeners = {};

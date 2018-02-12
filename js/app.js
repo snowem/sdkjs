@@ -7,31 +7,36 @@
 }(document));
 
 window.snowAsyncInit = function() {
- 
+
+   //start your code here
+   console.log("start your app here");
+   start_app();
+}
+
+function start_app() { 
    var isPublisher = 0;
    var channelid = 0;
    var publishingPeer = null;
    var playingPeer = null;
    var config = {
       'wss_ip': "wss.snowem.io",
-      'wss_port': 8443
+      'wss_port': 8443,
+      'video_codec': "h264",
    };
 
    function onPublishChannelCreated(peer) {
       console.log("onCreate: publishing peer=" + JSON.stringify(peer));
       document.getElementById("yourId").innerHTML = peer.channelId;
       var settings = {
-         'h264': 1,
          'channelid': peer.channelId,
-         'localVideoId': document.getElementById('localVideo'),
-         'remoteVideoId': null
+         'local_video_elm': document.getElementById('localVideo'),
+         'remote_video_elm': null
       };
 
       peer.publish(settings);
    }
 
    $("#publishBtn").click(function() {
-      console.log("publishing 1");
       isPublisher = 1;
       $("#floatDiv").hide();
       $("#publishDiv").append('<div class="text-center"> Your webcam\'s channel id: <span style="color:#FF0000" id="yourId"></span></div>');
@@ -52,10 +57,9 @@ window.snowAsyncInit = function() {
       playingPeer = SnowSDK.createPeer(config);
       playingPeer.onReady = function() {
          var settings = {
-            'h264': 1,
             'channelid': channelid,
-            'localVideoId': null,
-            'remoteVideoId': document.getElementById('playRemoteVideo')
+            'local_video_elm': null,
+            'remote_video_elm': document.getElementById('playRemoteVideo')
          };
          playingPeer.play(settings);
       }
