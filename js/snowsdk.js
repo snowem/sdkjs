@@ -260,12 +260,13 @@
          return false;
       }
 
-      if (typeof config.wss_ip === 'undefined') {
-         console.error("no websocket server ip found");
-         return false;
-      } else {
+      if (typeof config.wss_ip !== 'undefined') {
          this.wss_ip = config.wss_ip;
-      }
+      } else {
+         if (this.wss_ip === "") {
+           console.warn("websocket server ip not set");
+         }
+      } 
 
       if (typeof config.wss_port !== 'undefined') {
          this.wss_port = config.wss_port;
@@ -397,9 +398,7 @@
 
      this.listeners = [];
      this.config = new SnowSDK.Config();
-     if (this.config.init(config)) {
-       this.init();
-     }
+     this.config.init(config);
    }
 
    PeerAgent.prototype.reset_stream = function(config) {
@@ -421,8 +420,19 @@
      }
    }
 
+   PeerAgent.prototype.send_msg_in_queue = function(fix_id) {
+      var self = this;
+      for (var i = 0; i < self.ws_msg_queue.length; i++) {
+         if (fix_id) self.ws_msg_queue[i].id = self.peerId;
+         self.ws_client.send(self.ws_msg_queue[i]);
+      }
+      self.ws_msg_queue = [];
+   }
+
    PeerAgent.prototype.init = function() {
       var self = this;
+
+      if (this.isReady === 1) return;
 
       if (typeof this.config.wss_ip === 'undefined') {
          console.error("undefined websocket server ip");
@@ -441,14 +451,9 @@
       this.ws_client.connect(this.config.wss_ip,this.config.wss_port, function() {
          console.log("websocket is connected");
          self.ws_connected = 1;
-         for (var i = 0; i < self.ws_msg_queue.length; i++) {
-            self.ws_client.send(self.ws_msg_queue[i]);
-         }
-         self.ws_msg_queue = [];
+         self.ws_client.send({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_AUTH,
+                              'auth_data':self.config.auth_data});
       });
-
-      this.send({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_AUTH,
-                 'auth_data':this.config.auth_data});
    }
    
    PeerAgent.prototype.listen = function(eventName, handler) {
@@ -557,10 +562,10 @@
    }
 
    PeerAgent.prototype.send = function(msg) {
-     if (this.ws_connected) {
-       if ( this.ws_msg_queue.length > 0) {
+     if (this.isReady) {
+       if (this.ws_msg_queue.length > 0) {
          for (var i = 0; i < this.ws_msg_queue.length; i++) {
-           this.ws_client.send(self.ws_msg_queue[i]);
+           this.ws_client.send(this.ws_msg_queue[i]);
          }
          this.ws_msg_queue = [];
        }
@@ -581,6 +586,7 @@
             if (msg.api == globals_.SNW_SIG_AUTH) {
                this.peerId = msg.id;
                this.isReady = 1;
+               this.send_msg_in_queue(true);
                if (typeof this.onReady === "function") this.onReady();
                return;
             }
@@ -749,6 +755,10 @@
 
    PeerAgent.prototype.createChannel =function(config,onsuccess) {
       this.name = config.name;
+      //reset config
+      this.config.init(config);
+      this.init();
+
       //this.send({'msgtype':globals_.SNW_ICE,
       //           'api':globals_.SNW_ICE_CREATE, 
       //           'uuid': SnowSDK.Utils.uuid()});//TODO: store it in PeerAgent obj.
@@ -760,6 +770,8 @@
    }
 
    PeerAgent.prototype.connect = function(config) {
+      this.config.init(config);
+      this.init(config);
       this.reset_stream(config);
       this.channelId = config.channelid;
 
@@ -786,6 +798,7 @@
                      'name': this.name, 'id': this.peerId});
          } else {
             getusermedia(this, function(agent) {
+              console.log("send connect req");
                agent.send({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_CONNECT,
                      'channelid': agent.channelId, 'peer_type': agent.peerType, 'video_codec': agent.config.video_codec,
                      'name': agent.name, 'id': agent.peerId});
