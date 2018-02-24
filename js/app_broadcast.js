@@ -39,7 +39,7 @@ function start_app() {
    $("#publishBtn").click(function() {
       isPublisher = 1;
       $("#floatDiv").hide();
-      $("#publishDiv").append('<div class="text-center"> Your webcam\'s channel id: <span style="color:#FF0000" id="yourId"></span></div>');
+      $("#publishDiv").append('<div class="text-center"> Your webcam\'s channel id: <span id="yourId"></span></div>');
       publishingPeer = SnowSDK.createPeer(config);
       publishingPeer.createChannel({name: "demo"},onPublishChannelCreated);
       publishingPeer.listen('onPeerJoined',function(msg) {

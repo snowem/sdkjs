@@ -37,12 +37,16 @@
       // EVENT API
       this.SNW_EVENT_ICE_CONNECTED = 1;
       this.SNW_EVENT_PEER_JOINED = 2;
+      this.SNW_EVENT_ADD_SUBCHANNEL = 3;
+      this.SNW_EVENT_DEL_SUBCHANNEL = 4;
 
       // SIG API
       this.SNW_SIG_AUTH = 1;
       this.SNW_SIG_CREATE = 2;
       this.SNW_SIG_CONNECT = 3;
       this.SNW_SIG_CALL = 4;
+      this.SNW_SIG_PUBLISH = 5;
+      this.SNW_SIG_PLAY = 6;
       this.SNW_SIG_SDP = 128; 
       this.SNW_SIG_CANDIDATE = 129;
       this.SNW_SIG_FIR = 130;
@@ -52,6 +56,10 @@
       this.VCODEC_H264 = "h264";
       this.VCODEC_VP8 = "vp8";
       this.VCODEC_VP9 = "vp9";
+
+      this.BCAST_CHANNEL_TYPE = "broadcast";
+      this.CALL_CHANNEL_TYPE = "call";
+      this.CONF_CHANNEL_TYPE = "conference";
 
       function get_browser_info() {
          var unknown = '-';
@@ -241,6 +249,7 @@
 
       // channel info
       this.name = "default";
+      this.channel_type = globals_.BCAST_CHANNEL_TYPE;
       this.enable_video = 1; //: 0 disbale, 1: enable
       this.audio_codec = globals_.VAUDIO_OPUS;
       this.video_codec = globals_.VCODEC_H264;
@@ -276,6 +285,10 @@
          this.name = config.name;
       }
 
+      if (typeof config.channel_type !== 'undefined') {
+         this.channel_type = config.channel_type;
+      }
+
       if (typeof config.enbale_video !== 'undefined') {
          if (config.enbale_video === 0 || config.enbale_video === 1) {
            this.enable_video = config.enable_video;
@@ -296,7 +309,7 @@
       }
 
       if (typeof config.auth_data !== 'undefined') 
-         this.config.auth_data = "none";
+         this.auth_data = "none";
 
       return true;
    };
@@ -380,6 +393,7 @@
      this.remoteId = 0; 
      this.channelId = 0; 
      this.name = "";
+     this.is_visible = true;
 
      this.pc = null; //TODO
      this.ice_state = "disconnected";
@@ -390,6 +404,10 @@
      this.local_video_elm = null;
      this.remote_video_elm = null;
      this.reset_stream(config);
+     this.onAddStream = null;
+
+     //peers of subchannels
+     this.peers = new Object();
 
      // websocket info
      this.ws_client = null;
@@ -575,6 +593,42 @@
      }
    }
 
+   PeerAgent.prototype.handle_add_subchannel = function(msg) {
+     var self = this;
+     if (msg.peerid === this.peerId) {
+       console.log("self-msg: do nothing");
+       return;
+     }
+
+     var config = this.config;
+     var new_peer = SnowSDK.createPeer(config);
+     new_peer.is_visible = false;
+
+     var settings = {
+        'channelid': msg.subchannelid,
+        'local_video_elm': document.createElement('video'),//just empty video
+        'remote_video_elm': null,
+     };
+     new_peer.onAddPeerStream = function(msg) {
+       self.onAddPeerStream(msg);
+     }
+     new_peer.onRemovePeerStream = function(msg) {
+       self.onRemovePeerStream(msg);
+     }
+     new_peer.play(settings);
+     this.peers[msg.subchannelid] = new_peer;
+
+   }
+
+   PeerAgent.prototype.handle_del_subchannel = function(msg) {
+     console.log("del subchannel from peerid=" + this.peerId);
+     var info = {
+       peerid: this.peerId
+     }
+     this.onRemovePeerStream(info);
+   }
+
+
    PeerAgent.prototype.receive = function(msg) {
       if (msg.rc != null) {
          console.log("response from server: " + JSON.stringify(msg));
@@ -608,6 +662,20 @@
                }
                return;
             }
+
+            if (msg.api == globals_.SNW_SIG_PUBLISH) {
+              if (msg.rc === 0 && msg.subchannels instanceof Array) {
+                var i, len;
+                len = msg.subchannels.length;
+                for (i=0; i<len; ++i) {
+                  if (i in msg.subchannels) {
+                    s = msg.subchannels[i];
+                    this.handle_add_subchannel(s);
+                  }
+                }
+
+              }
+            }
          }
          return;
       }
@@ -636,6 +704,14 @@
          if (msg.api == globals_.SNW_EVENT_PEER_JOINED) {
             this.broadcast('onPeerJoined',msg);
             this.onPeerJoined(msg);
+            return;
+         }
+         if (msg.api == globals_.SNW_EVENT_ADD_SUBCHANNEL) {
+            this.handle_add_subchannel(msg);
+            return;
+         }
+         if (msg.api == globals_.SNW_EVENT_DEL_SUBCHANNEL) {
+            this.handle_del_subchannel(msg);
             return;
          }
 
@@ -698,13 +774,21 @@
       }   
 
       function onaddstream(event) {
-         console.log('Remote stream added, src:' + self.remote_video_elm);
-         if (self.remote_video_elm === null) {
-            console.warn("No video element for remote stream");
-            return;
-         }
-         self.remote_video_elm.srcObject = event.stream;
-         self.remote_stream = event.stream;
+        console.log('Remote stream added, src:' + self.remote_video_elm);
+        if (self.remote_video_elm === null) {
+          console.warn("No video element for remote stream");
+          if (self.is_visible === false
+              && typeof self.onAddPeerStream === "function") {
+            var msg = {
+              "peerid": self.peerId,
+              "stream": event.stream
+            };
+            self.onAddPeerStream(msg);
+          }
+        } else {
+          self.remote_video_elm.srcObject = event.stream;
+          self.remote_stream = event.stream;
+        }
       }   
 
       function onremovestream(event) {
@@ -765,12 +849,13 @@
       console.log("create channel, peerid=" + this.peerId);
       this.send({'msgtype':globals_.SNW_SIG,
                  'api':globals_.SNW_SIG_CREATE, 'id': this.peerId,
+                 'type': this.config.channel_type,
                  'uuid': SnowSDK.Utils.uuid()});//TODO: store it in PeerAgent obj.
       this.listen('onCreate',onsuccess);
    }
 
    PeerAgent.prototype.connect = function(config) {
-      this.config.init(config);
+      this.config.init(config);//TODO: move into this.init
       this.init(config);
       this.reset_stream(config);
       this.channelId = config.channelid;
@@ -798,7 +883,6 @@
                      'name': this.name, 'id': this.peerId});
          } else {
             getusermedia(this, function(agent) {
-              console.log("send connect req");
                agent.send({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_CONNECT,
                      'channelid': agent.channelId, 'peer_type': agent.peerType, 'video_codec': agent.config.video_codec,
                      'name': agent.name, 'id': agent.peerId});
@@ -810,11 +894,11 @@
    PeerAgent.prototype.onIceConnected = function() {
       if (this.peerType === "pub") {
          console.log("publishing a stream, channelId=" + this.channelId);
-         this.send({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_PUBLISH, 
+         this.send({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_PUBLISH, 
                  'channelid': this.channelId, 'id': this.peerId});
       } else if (this.peerType === "pla") {
          console.log("playing a stream, channelId=" + this.channelId);
-         this.send({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_PLAY, 
+         this.send({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_PLAY, 
                  'channelid': this.channelId, 'id': this.peerId});
       } else {
          //console.log("p2p mode (nothing to do), channelId=" + this.channelId);
@@ -884,8 +968,8 @@
 
    /* ----------------  SnowSDK API --------------------------------------------*/
    SnowSDK.createPeer = function(conf) {
-      var agent = new SnowSDK.PeerAgent(conf);
-      return agent;
+     var agent = new SnowSDK.PeerAgent(conf);
+     return agent;
    }
    /* ----------------  end of SnowSDK API --------------------------------------*/
 
