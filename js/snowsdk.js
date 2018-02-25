@@ -574,6 +574,7 @@
       msg.id = this.peerId
       msg.remoteid = this.remoteId
       this.send(msg);
+      console.log("on call");
       getusermedia(this,function(agent) {
          //do nothing, wait for response from other peer.
       });
@@ -654,11 +655,22 @@
 
             if (msg.api == globals_.SNW_SIG_CALL) {
                if (msg.rc === 0) {
-                  getusermedia(this,function(agent) {
-                     //start ice connetion when receiving 
-                     // the response from other peer.
-                     agent.do_offer();
-                  });
+                  if (this.local_stream) {
+                     //get media source directly
+                     this.start_stream(this.local_stream);
+                     if (this.local_video_elm !== null ) {
+                        this.local_video_elm.srcObject = this.local_stream;
+                     } else {
+                        console.warn("No video element for local stream");
+                     }
+                     this.do_offer();
+                  } else {
+                     getusermedia(this,function(agent) {
+                        //start ice connetion when receiving
+                        // the response from other peer.
+                        agent.do_offer();
+                     });
+                  }
                }
                return;
             }
