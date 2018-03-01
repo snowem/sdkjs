@@ -4,8 +4,67 @@
   if (window.SnowSDK) {
      return;
   }
-  SnowSDK.init = function(callback) {
-    console.log("deprecated version");
+  SnowSDK.ip = "";
+  SnowSDK.port = 0;
+  SnowSDK.init = function(config) {
+    console.log("initializing sdk");
+    if (typeof config === 'undefined') {
+       console.error("no config found");
+       return false;
+    }
+
+    if (typeof config.ip !== 'undefined') {
+       this.ip = config.ip;
+    } else {
+       if (this.ip === "") {
+         console.warn("websocket server ip not set");
+       }
+    } 
+
+    if (typeof config.port !== 'undefined') {
+       this.port = config.port;
+    }
+  }
+  SnowSDK.sendPostRequest = function(data,onSuccess,onError) {
+    // Sending and receiving data in JSON format using POST method
+    //
+    var xhr = new XMLHttpRequest();
+    var url = "https://wss.snowem.io:8868/";
+    xhr.open("POST", url, true);
+    xhr.setRequestHeader("Content-type", "application/json");
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState === 4 && xhr.status === 200) {
+        console.log("response: " + xhr.responseText);
+        onSuccess(JSON.parse(xhr.responseText));
+      }
+      //TODO: when call onError!
+      //onError(xhr.responseText);
+    };
+    console.log("req: " + JSON.stringify(data));
+    xhr.send(JSON.stringify(data));
+  }
+  SnowSDK.sendGetRequest = function(data,onSuccess,onError) {
+    // Sending a receiving data in JSON format using GET method
+    var xhr = new XMLHttpRequest();
+    var url = "https://wss.snowem.io:8868/?data=" 
+      + encodeURIComponent(JSON.stringify({"email": "hey@mail.com", "password": "101010"}));
+    xhr.open("GET", url, true);
+    xhr.setRequestHeader("Content-type", "application/json");
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState === 4 && xhr.status === 200) {
+        var json = JSON.parse(xhr.responseText);
+        console.log(json.email + ", " + json.password);
+      }
+    };
+    xhr.send();
+  }
+  SnowSDK.getChannel = function(name,onSuccess,onError) {
+    var msg = {
+      'name': name,
+      'msgtype': 5,
+      'api': 1,
+    }
+    SnowSDK.sendPostRequest(msg,onSuccess,onError);
   }
   window.SnowSDK = SnowSDK;
  
