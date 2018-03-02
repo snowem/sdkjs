@@ -63,9 +63,20 @@
       'name': name,
       'msgtype': 5,
       'api': 1,
+      'type': 'broadcast',
     }
     SnowSDK.sendPostRequest(msg,onSuccess,onError);
   }
+  SnowSDK.getGroupChannel = function(name,onSuccess,onError) {
+    var msg = {
+      'name': name,
+      'msgtype': 5,
+      'api': 1,
+      'type': 'conference',
+    }
+    SnowSDK.sendPostRequest(msg,onSuccess,onError);
+  }
+
   window.SnowSDK = SnowSDK;
  
 })(this);
