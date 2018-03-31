@@ -53,11 +53,11 @@ function start_app() {
 
    $("#joinRoomBtn").click(function() {
      //create a channel
-     var channelinfo = {
+     var channel = {
         'name': 'snowem-example',
         'type': 'conference'
      }
-     SnowSDK.getGroupChannel($("#joinRoomChannelId").val(), onSuccess, onError);
+     SnowSDK.getChannel(channel, onSuccess, onError);
    });
 }
 ```
