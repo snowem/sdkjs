@@ -42,6 +42,7 @@
     };
     console.log("req: " + JSON.stringify(data));
     xhr.send(JSON.stringify(data));
+<<<<<<< HEAD
   }
   SnowSDK.sendGetRequest = function(data,onSuccess,onError) {
     // Sending a receiving data in JSON format using GET method
@@ -65,7 +66,43 @@
       'api': 1,
     }
     SnowSDK.sendPostRequest(msg,onSuccess,onError);
+=======
+>>>>>>> restapi
   }
+  SnowSDK.sendGetRequest = function(data,onSuccess,onError) {
+    // Sending a receiving data in JSON format using GET method
+    var xhr = new XMLHttpRequest();
+    var url = "https://wss.snowem.io:8868/?data=" 
+      + encodeURIComponent(JSON.stringify({"email": "hey@mail.com", "password": "101010"}));
+    xhr.open("GET", url, true);
+    xhr.setRequestHeader("Content-type", "application/json");
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState === 4 && xhr.status === 200) {
+        var json = JSON.parse(xhr.responseText);
+        console.log(json.email + ", " + json.password);
+      }
+    };
+    xhr.send();
+  }
+  SnowSDK.getChannel = function(name,onSuccess,onError) {
+    var msg = {
+      'name': name,
+      'msgtype': 5,
+      'api': 1,
+      'type': 'broadcast',
+    }
+    SnowSDK.sendPostRequest(msg,onSuccess,onError);
+  }
+  SnowSDK.getGroupChannel = function(name,onSuccess,onError) {
+    var msg = {
+      'name': name,
+      'msgtype': 5,
+      'api': 1,
+      'type': 'conference',
+    }
+    SnowSDK.sendPostRequest(msg,onSuccess,onError);
+  }
+
   window.SnowSDK = SnowSDK;
  
 })(this);
