@@ -1,5 +1,6 @@
 // SDK global constants
 (function (window) {
+  'use strict';
   var SnowSDK = {};
   if (window.SnowSDK) {
      return;
@@ -7,29 +8,47 @@
   SnowSDK.ip = "";
   SnowSDK.port = 0;
   SnowSDK.init = function(config) {
-    console.log("initializing sdk");
     if (typeof config === 'undefined') {
        console.error("no config found");
        return false;
     }
 
-    if (typeof config.ip !== 'undefined') {
-       this.ip = config.ip;
+    if (typeof config.wss_ip !== 'undefined') {
+         this.wss_ip = config.wss_ip;
     } else {
-       if (this.ip === "") {
+       if (this.wss_ip === "") {
          console.warn("websocket server ip not set");
        }
+    }
+
+    if (typeof config.wss_port !== 'undefined') {
+       this.wss_port = config.wss_port
+    } else {
+       this.wss_port = 8443;
+    }
+
+    if (typeof config.rest_ip !== 'undefined') {
+       this.rest_ip = config.rest_ip;
+    } else {
+       if (this.rest_ip === "") {
+         console.warn("websocket server ip not set");
+       }
+       this.rest_ip = config.wss_ip;
     } 
 
-    if (typeof config.port !== 'undefined') {
-       this.port = config.port;
+    if (typeof config.rest_port !== 'undefined') {
+       this.rest_port = config.rest_port;
+    } else {
+       this.rest_port = 8868;
     }
+
+
   }
   SnowSDK.sendPostRequest = function(data,onSuccess,onError) {
     // Sending and receiving data in JSON format using POST method
     //
     var xhr = new XMLHttpRequest();
-    var url = "https://wss.snowem.io:8868/";
+    var url = "https://" + this.rest_ip + ":" + this.rest_port + "/";
     xhr.open("POST", url, true);
     xhr.setRequestHeader("Content-type", "application/json");
     xhr.onreadystatechange = function () {
@@ -46,31 +65,7 @@
   SnowSDK.sendGetRequest = function(data,onSuccess,onError) {
     // Sending a receiving data in JSON format using GET method
     var xhr = new XMLHttpRequest();
-    var url = "https://wss.snowem.io:8868/?data=" 
-      + encodeURIComponent(JSON.stringify({"email": "hey@mail.com", "password": "101010"}));
-    xhr.open("GET", url, true);
-    xhr.setRequestHeader("Content-type", "application/json");
-    xhr.onreadystatechange = function () {
-      if (xhr.readyState === 4 && xhr.status === 200) {
-        var json = JSON.parse(xhr.responseText);
-        console.log(json.email + ", " + json.password);
-      }
-    };
-    xhr.send();
-  }
-  SnowSDK.getChannel = function(name,onSuccess,onError) {
-    var msg = {
-      'name': name,
-      'msgtype': 5,
-      'api': 1,
-    }
-    SnowSDK.sendPostRequest(msg,onSuccess,onError);
-  }
-  SnowSDK.sendGetRequest = function(data,onSuccess,onError) {
-    // Sending a receiving data in JSON format using GET method
-    var xhr = new XMLHttpRequest();
-    var url = "https://wss.snowem.io:8868/?data=" 
-      + encodeURIComponent(JSON.stringify({"email": "hey@mail.com", "password": "101010"}));
+    var url = "https://" + this.rest_ip + ":" + this.rest_port + "/?data=" + JSON.stringify(data);
     xhr.open("GET", url, true);
     xhr.setRequestHeader("Content-type", "application/json");
     xhr.onreadystatechange = function () {
@@ -299,28 +294,26 @@
 
 // SDK Utitlities
 (function(window, undefined) {
-   function uuid() {
-     function s4() {
+  'use strict';
+  function uuid() {
+    function s4() {
        return Math.floor((1 + Math.random()) * 0x10000)
          .toString(16)
          .substring(1);
-     }
-     return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
-       s4() + '-' + s4() + s4() + s4();
-   }
+    }
+    return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+      s4() + '-' + s4() + s4() + s4();
+  }
 
-   var SnowSDK = window.SnowSDK;
-   SnowSDK.Utils = {};
-   SnowSDK.Utils.uuid = uuid;
+  var SnowSDK = window.SnowSDK;
+  SnowSDK.Utils = {};
+  SnowSDK.Utils.uuid = uuid;
 })(this);
 
 // SDK configurations
 (function(window, undefined) {
+   'use strict';
    function Config() {
-      // wss settings
-      this.wss_ip = "";
-      this.wss_port = 443;
-
       // webrtc settings
       this.media_constraints = { audio: true, 
                                 video: {
@@ -354,6 +347,9 @@
 
       // others
       this.auth_data = "none";
+
+      this.wss_ip = SnowSDK.wss_ip;
+      this.wss_port = SnowSDK.wss_port;
    }
 
    Config.prototype.init= function(config) {
@@ -366,12 +362,14 @@
          this.wss_ip = config.wss_ip;
       } else {
          if (this.wss_ip === "") {
-           console.warn("websocket server ip not set");
+            console.warn("websocket server ip not set");
          }
-      } 
+      }
 
       if (typeof config.wss_port !== 'undefined') {
-         this.wss_port = config.wss_port;
+         this.wss_port = config.wss_port
+      } else {
+         this.wss_port = 8443;
       }
 
       if (typeof config.name !== 'undefined') {
@@ -413,6 +411,8 @@
 
 // ws client
 (function(window, undefined) {
+   'use strict';
+   var SnowSDK = window.SnowSDK || {};
    function WsClient(){
       this.ipaddr = null;
       this.port = 0;
@@ -477,7 +477,8 @@
 
 // peer agent
 (function(window, undefined) {
-   var SnowSDK = window.SnowSDK;
+   'use strict';
+   var SnowSDK = window.SnowSDK || {};
    //var globals = SnowSDK.Globals();
 
    function PeerAgent(config){
@@ -774,7 +775,7 @@
                 len = msg.subchannels.length;
                 for (i=0; i<len; ++i) {
                   if (i in msg.subchannels) {
-                    s = msg.subchannels[i];
+                    var s = msg.subchannels[i];
                     this.handle_add_subchannel(s);
                   }
                 }
@@ -1036,6 +1037,7 @@
 
 // SDK API implementation
 (function(window, undefined) {
+   'use strict';
    var SnowSDK = window.SnowSDK;
 
    /* ---------------- SnowSDK events ---------------------------------------*/
@@ -1085,6 +1087,7 @@
 
 /* loading other stuff */
 (function (window) {
+  'use strict';
   function loadScript(url, callback) {
     var script = document.createElement('script');
     script.async = true;
@@ -1117,12 +1120,13 @@
   }      
 
   function loadCallback() {
-    console.log("initializing asyn snowsdk");
+    console.log("initializing async snowsdk");
     if (typeof window.snowAsyncInit === 'function') {
       window.snowAsyncInit();
     }
   }
 
-  var url = getBaseUrl("snowsdk.js").replace("snowsdk.js","adapter.js");
-  loadScript(url,loadCallback);
+  //var url = getBaseUrl("snowsdk.js").replace("snowsdk.js","adapter.js");
+  //loadScript(url,loadCallback);
+  loadCallback();
 })(this);
