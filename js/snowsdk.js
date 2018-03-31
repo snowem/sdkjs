@@ -76,21 +76,16 @@
     };
     xhr.send();
   }
-  SnowSDK.getChannel = function(name,onSuccess,onError) {
-    var msg = {
-      'name': name,
-      'msgtype': 5,
-      'api': 1,
-      'type': 'broadcast',
+  SnowSDK.createChannel = function(channel,onSuccess,onError) {
+    if (typeof channel.name === 'undefined' || typeof channel.type === 'undefined') {
+      console.error("undefined channel name or type");
+      return;
     }
-    SnowSDK.sendPostRequest(msg,onSuccess,onError);
-  }
-  SnowSDK.getGroupChannel = function(name,onSuccess,onError) {
     var msg = {
-      'name': name,
+      'name': channel.name,
       'msgtype': 5,
       'api': 1,
-      'type': 'conference',
+      'type': channel.type,
     }
     SnowSDK.sendPostRequest(msg,onSuccess,onError);
   }
