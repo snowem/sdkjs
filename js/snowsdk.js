@@ -42,7 +42,6 @@
     };
     console.log("req: " + JSON.stringify(data));
     xhr.send(JSON.stringify(data));
-<<<<<<< HEAD
   }
   SnowSDK.sendGetRequest = function(data,onSuccess,onError) {
     // Sending a receiving data in JSON format using GET method
@@ -66,8 +65,6 @@
       'api': 1,
     }
     SnowSDK.sendPostRequest(msg,onSuccess,onError);
-=======
->>>>>>> restapi
   }
   SnowSDK.sendGetRequest = function(data,onSuccess,onError) {
     // Sending a receiving data in JSON format using GET method

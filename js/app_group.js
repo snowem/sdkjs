@@ -87,12 +87,7 @@ function start_app() {
    $("#conferenceSectionId").hide();
    $("#templateVideoBoxId").hide();
    $("#joinRoomBtn").click(function() {
-<<<<<<< HEAD
-     SnowSDK.getChannel($("#joinRoomChannelId").val(), onSuccess, onError);
-=======
      SnowSDK.getGroupChannel($("#joinRoomChannelId").val(), onSuccess, onError);
->>>>>>> restapi
-
    });
 
    //$("#addBtn").click(function() {
