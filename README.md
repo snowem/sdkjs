@@ -57,7 +57,7 @@ function start_app() {
         'name': 'snowem-example',
         'type': 'conference'
      }
-     SnowSDK.getChannel(channel, onSuccess, onError);
+     SnowSDK.createChannel(channel, onSuccess, onError);
    });
 }
 ```
