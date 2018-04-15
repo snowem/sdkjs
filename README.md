@@ -1,5 +1,21 @@
 This is javascript sdk for snowem streaming server. You can use it to create a channel and to publish/play a media stream on a channel.
 
+### Setup A Demo Webapp
+
+Prerequisite: install nodejs and express framework.
+```
+curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
+sudo apt-get install -y nodejs
+```
+Install demo webapp. Open sdkjs/js/app.js, change wss_ip to your snowem server's ip address. If you run snowem on your local machine, then just put "127.0.0.1".
+```
+git clone https://github.com/snowem/sdkjs.git
+cd sdkjs
+npm install
+node index.js
+```
+Open your browser, paste the url "http://localhost:8000", start testing the demo. 
+
 ### SDK Usage
 
 Define your init function _snowAsyncInit_:
@@ -9,8 +25,8 @@ Define your init function _snowAsyncInit_:
 
 window.snowAsyncInit = function() {
    var config = { 
-      'ip': "your-wss-ip",
-      'port': 443 
+      'wss_ip': "<your-wss-ip>",
+      'wss_port': 8443 
    };  
    SnowSDK.init(config);
 
