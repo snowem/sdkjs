@@ -487,6 +487,7 @@
      this.pc = null; //TODO
      this.ice_state = "disconnected";
      this.peerType = "none";
+     this.started = false;
 
      this.local_stream = null;
      this.remote_stream = null;
@@ -897,7 +898,7 @@
       }
 
       function oniceconnectionstatechange(event) {
-         console.log("ICE connection status changed : " + event.target.iceConnectionState)
+         console.log("ICE connection status changed : peerid=" + self.peerId + " " + event.target.iceConnectionState)
          if (event.target.iceConnectionState === "connected") {
             self.state = 'connected';
             self.broadcast('onIceConnected',this);
@@ -993,6 +994,8 @@
    }
 
    PeerAgent.prototype.onIceConnected = function() {
+      if (this.started) return; //already send request
+
       if (this.peerType === "pub") {
          console.log("publishing a stream, channelId=" + this.channelId);
          this.send({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_PUBLISH, 
@@ -1004,6 +1007,8 @@
       } else {
          //console.log("p2p mode (nothing to do), channelId=" + this.channelId);
       }
+      this.ice_state = "connected";
+      this.started = true;
    }
 
    PeerAgent.prototype.onPeerJoined = function(msg) {
