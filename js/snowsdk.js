@@ -44,6 +44,7 @@
 
 
   }
+
   SnowSDK.sendPostRequest = function(data,onSuccess,onError) {
     // Sending and receiving data in JSON format using POST method
     //
@@ -62,6 +63,7 @@
     console.log("req: " + JSON.stringify(data));
     xhr.send(JSON.stringify(data));
   }
+
   SnowSDK.sendGetRequest = function(data,onSuccess,onError) {
     // Sending a receiving data in JSON format using GET method
     var xhr = new XMLHttpRequest();
@@ -76,19 +78,66 @@
     };
     xhr.send();
   }
-  SnowSDK.createChannel = function(channel,onSuccess,onError) {
-    if (typeof channel.name === 'undefined' || typeof channel.type === 'undefined') {
+
+  SnowSDK.createChannel = function(data,onSuccess,onError) {
+    if (typeof data.name === 'undefined'
+        || typeof data.type === 'undefined'
+        || typeof data.token === 'undefined') {
       console.error("undefined channel name or type");
       return;
     }
     var msg = {
-      'name': channel.name,
       'msgtype': 5,
       'api': 1,
-      'type': channel.type,
+      'name': data.name,
+      'type': data.type,
+      'token': data.token,
     }
     SnowSDK.sendPostRequest(msg,onSuccess,onError);
   }
+
+  SnowSDK.deleteChannel = function(data,onSuccess,onError) {
+    if (typeof data.channelid === 'undefined'
+        || typeof data.token === 'undefined') {
+      console.error("undefined channel id or token");
+      return;
+    }
+    var msg = {
+      'msgtype': 5,
+      'api': 2,
+      'channelid': data.channelid,
+      'token': data.token
+    }
+    SnowSDK.sendPostRequest(msg,onSuccess,onError);
+  }
+
+  SnowSDK.queryChannel = function(data,onSuccess,onError) {
+    var is_valid = false;
+    if (typeof data.token === 'undefined') {
+      console.error("undefined channel id or token");
+      return;
+    }
+    var msg = {
+      'msgtype': 5,
+      'api': 3,
+      'token': data.token
+    }
+    console.log("query data: ", data);
+    if (typeof data.channelid !== 'undefined') {
+      msg.channelid = data.channelid;
+      is_valid = true;
+    }
+    if (typeof data.name !== 'undefined') {
+      msg.name = data.name;
+      is_valid = true;
+    }
+    if (is_valid) {
+      SnowSDK.sendPostRequest(msg,onSuccess,onError);
+    } else {
+      console.error("invalid message: channelid or name not found");
+    }
+  }
+
 
   window.SnowSDK = SnowSDK;
  
