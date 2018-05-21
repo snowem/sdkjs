@@ -1,12 +1,198 @@
-// SDK global constants
+(function (window) {
+   'use strict';
+   window.SnowSDK = {};
+   var SnowSDK = window.SnowSDK || {};
+
+   function Globals() {
+      this.SNW_ICE = 1;
+      this.SNW_CORE = 2;
+      this.SNW_EVENT = 3;
+      this.SNW_SIG = 4;
+      this.SNW_CHANNEL = 5;
+
+      // ICE PUBLIC API
+      this.SNW_ICE_CREATE = 1;
+      this.SNW_ICE_CONNECT = 2;
+      this.SNW_ICE_PUBLISH = 3;
+      this.SNW_ICE_PLAY = 4;
+      this.SNW_ICE_STOP = 5;
+      this.SNW_ICE_CONTROL = 6;
+      this.SNW_ICE_AUTH = 7;
+      this.SNW_ICE_CALL = 8;
+
+      // ICE INTERNAL API
+      this.SNW_ICE_SDP = 128;
+      this.SNW_ICE_CANDIDATE = 129;
+      this.SNW_ICE_FIR = 130;
+
+      // EVENT API
+      this.SNW_EVENT_ICE_CONNECTED = 1;
+      this.SNW_EVENT_PEER_JOINED = 2;
+      this.SNW_EVENT_ADD_SUBCHANNEL = 3;
+      this.SNW_EVENT_DEL_SUBCHANNEL = 4;
+
+      // SIG API
+      this.SNW_SIG_AUTH = 1;
+      this.SNW_SIG_CREATE = 2;
+      this.SNW_SIG_CONNECT = 3;
+      this.SNW_SIG_CALL = 4;
+      this.SNW_SIG_PUBLISH = 5;
+      this.SNW_SIG_PLAY = 6;
+      this.SNW_SIG_SDP = 128;
+      this.SNW_SIG_CANDIDATE = 129;
+      this.SNW_SIG_FIR = 130;
+
+      this.SNW_CHANNEL_CREATE = 1;
+      this.SNW_CHANNEL_DELETE = 2;
+      this.SNW_CHANNEL_QUERY = 3;
+      this.SNW_CHANNEL_CONNECT = 4;
+      this.SNW_CHANNEL_DISCONNECT = 5;
+
+      this.ACODEC_OPUS = "opus";
+      this.ACODEC_PMCU = "pmcu";
+      this.VCODEC_H264 = "h264";
+      this.VCODEC_VP8 = "vp8";
+      this.VCODEC_VP9 = "vp9";
+
+      //FIXME: p2p and group
+      this.BCAST_CHANNEL_TYPE = "broadcast";
+      this.CALL_CHANNEL_TYPE = "call";
+      this.CONF_CHANNEL_TYPE = "conference";
+   }
+
+   SnowSDK.Globals = Globals;
+
+   window.globals_ = SnowSDK.Globals();
+})(this);
+
+
+// Channel object
+(function(window, undefined) {
+   'use strict';
+   var SnowSDK = window.SnowSDK || {};
+
+   function Channel(data) {
+     console.log("create a channel: " + JSON.stringify(data));
+     if (typeof data.name === 'undefined') {
+       console.error("channel name not found");
+       return null;
+     }
+
+     if (typeof data.channelid === 'undefined') {
+       console.error("channel id not found");
+       return null;
+     }
+
+     if (typeof data.type === 'undefined') {
+       console.error("channel type not found");
+       return null;
+     }
+
+     this.name = data.name;
+     this.id = data.channelid;
+     this.ipaddr = SnowSDK.wss_ip;
+     this.port = SnowSDK.wss_port;
+     this.type = data.type;
+     this.isReady = false;
+     this.websocket = null;
+     this.publishStreams = [];
+     this.remoteStreams = [];
+     this.listeners = [];
+     this.msgs = [];
+   }
+
+   Channel.prototype.connect = function() {
+      var self = this;
+      self.ipaddr = SnowSDK.wss_ip;
+      self.port = SnowSDK.wss_port;
+      if ("WebSocket" in window) {
+         self.websocket = new WebSocket("wss://"+self.ipaddr+
+                                        ":"+self.port,"default");
+         self.websocket.binaryType = 'blob';
+         self.websocket.onopen = function(e) {
+            self.isReady = true;
+            for (var i = 0; i < self.msgs.length; i++) {
+               var msg = JSON.stringify(self.msgs[i]);
+               self.websocket.send(msg);
+            }
+            self.msgs = []; //reset it.
+            self.isReady = true;
+            self.broadcast("onConnected",null);
+         };
+         self.websocket.onmessage = function (evt) {
+           if (self.onMessage != null) {
+              self.onMessage(evt);
+           } else {
+              var msg = JSON.parse(evt.data);
+              console.log("have not defined onmessage: ", evt.data);
+           }
+         };
+      } else {
+         console.warn("WebSocket is not supported by your browser!");
+      }
+   }
+
+   Channel.prototype.onMessage = function(evt) {
+      var msg = JSON.parse(evt.data);
+      console.log("onMessage: get msg: ", evt.data);
+   }
+
+   Channel.prototype.sendMessage = function(message) {
+      if (!this.isReady) {
+         this.msgs.push(message);
+         return;
+      }
+      if (this.websocket) {
+         if (typeof message === 'object') {
+            message = JSON.stringify(message);
+         }
+         console.log("sending msg, msg=", message);
+         this.websocket.send(message);
+      } else {
+         console.warn("websocket not initialized!");
+      }
+   }
+
+   Channel.prototype.listen = function(eventName, handler) {
+      if (typeof this.listeners[eventName] === 'undefined') {
+         this.listeners[eventName] = [];
+      }
+      this.listeners[eventName].push(handler);
+   }
+
+   Channel.prototype.unlisten = function(eventName, handler) {
+      if (!this.listeners[eventName]) {
+         return;
+      }
+      for (var i = 0; i < this.listeners[eventName].length; i++) {
+         if (this.listeners[eventName][i] === handler) {
+            this.listeners[eventName].splice(i, 1);
+            break;
+         }
+      }
+   };
+
+   Channel.prototype.broadcast = function(eventName,msg) {
+      console.log("channel broadcast, event=" + eventName + ", msg=" + JSON.stringify(msg));
+      if (!this.listeners[eventName]) {
+         console.log("no handler for event, name=" + JSON.stringify(eventName));
+         return; 
+      }
+      for (var i = 0; i < this.listeners[eventName].length; i++) {
+         this.listeners[eventName][i](msg);
+      } 
+   }
+
+
+   SnowSDK.Channel = Channel;
+
+})(this);
+// end of ws client
+
 (function (window) {
   'use strict';
-  var SnowSDK = {};
-  if (window.SnowSDK) {
-     return;
-  }
-  SnowSDK.ip = "";
-  SnowSDK.port = 0;
+  var SnowSDK = window.SnowSDK || {};
+
   SnowSDK.init = function(config) {
     if (typeof config === 'undefined') {
        console.error("no config found");
@@ -14,34 +200,35 @@
     }
 
     if (typeof config.wss_ip !== 'undefined') {
-         this.wss_ip = config.wss_ip;
+       SnowSDK.wss_ip = config.wss_ip;
+       console.warn("websocket server ip: " + SnowSDK.wss_ip);
     } else {
-       if (this.wss_ip === "") {
+       if (SnowSDK.wss_ip === "") {
          console.warn("websocket server ip not set");
        }
     }
 
     if (typeof config.wss_port !== 'undefined') {
-       this.wss_port = config.wss_port
+       SnowSDK.wss_port = config.wss_port;
+       console.warn("websocket server port: " + SnowSDK.wss_port);
     } else {
-       this.wss_port = 8443;
+       SnowSDK.wss_port = 8443;
     }
 
     if (typeof config.rest_ip !== 'undefined') {
-       this.rest_ip = config.rest_ip;
+       SnowSDK.rest_ip = config.rest_ip;
     } else {
-       if (this.rest_ip === "") {
+       if (SnowSDK.rest_ip === "") {
          console.warn("websocket server ip not set");
        }
-       this.rest_ip = config.wss_ip;
+       SnowSDK.rest_ip = config.wss_ip;
     } 
 
     if (typeof config.rest_port !== 'undefined') {
-       this.rest_port = config.rest_port;
+       SnowSDK.rest_port = config.rest_port;
     } else {
-       this.rest_port = 8868;
+       SnowSDK.rest_port = 8868;
     }
-
 
   }
 
@@ -80,8 +267,10 @@
   }
 
   SnowSDK.createChannel = function(data,onSuccess,onError) {
+    if (typeof data.type === 'undefined')
+      data.type = "conference";
+
     if (typeof data.name === 'undefined'
-        || typeof data.type === 'undefined'
         || typeof data.token === 'undefined') {
       console.error("undefined channel name or type");
       return;
@@ -93,7 +282,14 @@
       'type': data.type,
       'token': data.token,
     }
-    SnowSDK.sendPostRequest(msg,onSuccess,onError);
+    function onReqSuccess(resp) {
+      var channel = new SnowSDK.Channel(resp);
+      if (onSuccess) onSuccess(channel);
+    }
+    function onReqError(resp) {
+      if (onError) onError(resp);
+    }
+    SnowSDK.sendPostRequest(msg,onReqSuccess,onReqError);
   }
 
   SnowSDK.deleteChannel = function(data,onSuccess,onError) {
@@ -137,208 +333,14 @@
       console.error("invalid message: channelid or name not found");
     }
   }
-
-
-  window.SnowSDK = SnowSDK;
  
-})(this);
-
-(function (window) {
-   'use strict';
-   function Globals() {
-      this.SNW_ICE = 1;
-      this.SNW_CORE = 2;
-      this.SNW_EVENT = 3;
-      this.SNW_SIG = 4;
-
-      // ICE PUBLIC API
-      this.SNW_ICE_CREATE = 1;
-      this.SNW_ICE_CONNECT = 2;
-      this.SNW_ICE_PUBLISH = 3;
-      this.SNW_ICE_PLAY = 4;
-      this.SNW_ICE_STOP = 5;
-      this.SNW_ICE_CONTROL = 6;
-      this.SNW_ICE_AUTH = 7;
-      this.SNW_ICE_CALL = 8;
-
-      // ICE INTERNAL API
-      this.SNW_ICE_SDP = 128; 
-      this.SNW_ICE_CANDIDATE = 129;
-      this.SNW_ICE_FIR = 130;
-
-      // EVENT API
-      this.SNW_EVENT_ICE_CONNECTED = 1;
-      this.SNW_EVENT_PEER_JOINED = 2;
-      this.SNW_EVENT_ADD_SUBCHANNEL = 3;
-      this.SNW_EVENT_DEL_SUBCHANNEL = 4;
-
-      // SIG API
-      this.SNW_SIG_AUTH = 1;
-      this.SNW_SIG_CREATE = 2;
-      this.SNW_SIG_CONNECT = 3;
-      this.SNW_SIG_CALL = 4;
-      this.SNW_SIG_PUBLISH = 5;
-      this.SNW_SIG_PLAY = 6;
-      this.SNW_SIG_SDP = 128; 
-      this.SNW_SIG_CANDIDATE = 129;
-      this.SNW_SIG_FIR = 130;
-
-      this.ACODEC_OPUS = "opus";
-      this.ACODEC_PMCU = "pmcu";
-      this.VCODEC_H264 = "h264";
-      this.VCODEC_VP8 = "vp8";
-      this.VCODEC_VP9 = "vp9";
-
-      this.BCAST_CHANNEL_TYPE = "broadcast";
-      this.CALL_CHANNEL_TYPE = "call";
-      this.CONF_CHANNEL_TYPE = "conference";
-
-      function get_browser_info() {
-         var unknown = '-';
-         var screenSize = '';
-         if (screen.width) {
-             var width = (screen.width) ? screen.width : '';
-             var height = (screen.height) ? screen.height : '';
-             screenSize += '' + width + " x " + height;
-         }
-
-         var nVer = navigator.appVersion;
-         var nAgt = navigator.userAgent;
-         var browser = navigator.appName;
-         var version = '' + parseFloat(navigator.appVersion);
-         var majorVersion = parseInt(navigator.appVersion, 10);
-         var nameOffset, verOffset, ix;
-
-         if ((verOffset = nAgt.indexOf('Opera')) != -1) {
-             browser = 'Opera';
-             version = nAgt.substring(verOffset + 6);
-             if ((verOffset = nAgt.indexOf('Version')) != -1) {
-                 version = nAgt.substring(verOffset + 8);
-             }
-         }
-         else if ((verOffset = nAgt.indexOf('MSIE')) != -1) {
-             browser = 'Microsoft Internet Explorer';
-             version = nAgt.substring(verOffset + 5);
-         }
-         else if ((verOffset = nAgt.indexOf('Chrome')) != -1) {
-             browser = 'Chrome';
-             version = nAgt.substring(verOffset + 7);
-         }
-         else if ((verOffset = nAgt.indexOf('Safari')) != -1) {
-             browser = 'Safari';
-             version = nAgt.substring(verOffset + 7);
-             if ((verOffset = nAgt.indexOf('Version')) != -1) {
-                 version = nAgt.substring(verOffset + 8);
-             }
-         }
-         else if ((verOffset = nAgt.indexOf('Firefox')) != -1) {
-             browser = 'Firefox';
-             version = nAgt.substring(verOffset + 8);
-         }
-         else if (nAgt.indexOf('Trident/') != -1) {
-             browser = 'Microsoft Internet Explorer';
-             version = nAgt.substring(nAgt.indexOf('rv:') + 3);
-         }
-         else if ((nameOffset = nAgt.lastIndexOf(' ') + 1) < (verOffset = nAgt.lastIndexOf('/'))) {
-             browser = nAgt.substring(nameOffset, verOffset);
-             version = nAgt.substring(verOffset + 1);
-             if (browser.toLowerCase() == browser.toUpperCase()) {
-                 browser = navigator.appName;
-             }
-         }
-         // trim the version string
-         if ((ix = version.indexOf(';')) != -1) version = version.substring(0, ix);
-         if ((ix = version.indexOf(' ')) != -1) version = version.substring(0, ix);
-         if ((ix = version.indexOf(')')) != -1) version = version.substring(0, ix);
-
-         majorVersion = parseInt('' + version, 10);
-         if (isNaN(majorVersion)) {
-             version = '' + parseFloat(navigator.appVersion);
-             majorVersion = parseInt(navigator.appVersion, 10);
-         }
-
-         // mobile version
-         var mobile = /Mobile|mini|Fennec|Android|iP(ad|od|hone)/.test(nVer);
-         // cookie
-         var cookieEnabled = (navigator.cookieEnabled) ? true : false;
-         if (typeof navigator.cookieEnabled == 'undefined' && !cookieEnabled) {
-             document.cookie = 'testcookie';
-             cookieEnabled = (document.cookie.indexOf('testcookie') != -1) ? true : false;
-         }
-
-         // system
-         var os = unknown;
-         var clientStrings = [
-             {s:'Windows 10', r:/(Windows 10.0|Windows NT 10.0)/},
-             {s:'Windows 7', r:/(Windows 7|Windows NT 6.1)/},
-             {s:'Windows Vista', r:/Windows NT 6.0/},
-             {s:'Windows XP', r:/(Windows NT 5.1|Windows XP)/},
-             {s:'Android', r:/Android/},
-             {s:'OpenBSD', r:/OpenBSD/},
-             {s:'SunOS', r:/SunOS/},
-             {s:'Linux', r:/(Linux|X11)/},
-             {s:'iOS', r:/(iPhone|iPad|iPod)/},
-             {s:'MacOS', r:/Mac OS X/},
-             {s:'QNX', r:/QNX/},
-             {s:'UNIX', r:/UNIX/},
-         ];
-         for (var id in clientStrings) {
-             var cs = clientStrings[id];
-             if (cs.r.test(nAgt)) {
-                 os = cs.s;
-                 break;
-             }
-         }
-
-         var osVersion = unknown;
-         if (/Windows/.test(os)) {
-             osVersion = /Windows (.*)/.exec(os)[1];
-             os = 'Windows';
-         }
-
-         switch (os) {
-             case 'Mac OS X':
-                 osVersion = /Mac OS X (10[\.\_\d]+)/.exec(nAgt)[1];
-                 break;
-
-             case 'Android':
-                 osVersion = /Android ([\.\_\d]+)/.exec(nAgt)[1];
-                 break;
-
-             case 'iOS':
-                 osVersion = /OS (\d+)_(\d+)_?(\d+)?/.exec(nVer);
-                 osVersion = osVersion[1] + '.' + osVersion[2] + '.' + (osVersion[3] | 0);
-                 break;
-         }
-
-         return {
-             screen: screenSize,
-             browser: browser,
-             browserVersion: version,
-             browserMajorVersion: majorVersion,
-             mobile: mobile,
-             os: os,
-             osVersion: osVersion,
-             cookies: cookieEnabled
-         };
-      }
-
-      this.mBrowserInfo = get_browser_info();
-      this.getBrowserInfo = function() {
-         return this.mBrowserInfo;
-      }
-
-      return this;
-   }
-
-   var SnowSDK = window.SnowSDK;
-   SnowSDK.Globals = Globals;
-   window.globals_ = SnowSDK.Globals();
 })(this);
 
 // SDK Utitlities
 (function(window, undefined) {
   'use strict';
+  var SnowSDK = window.SnowSDK || {};
+
   function uuid() {
     function s4() {
        return Math.floor((1 + Math.random()) * 0x10000)
@@ -349,7 +351,6 @@
       s4() + '-' + s4() + s4() + s4();
   }
 
-  var SnowSDK = window.SnowSDK;
   SnowSDK.Utils = {};
   SnowSDK.Utils.uuid = uuid;
 })(this);
@@ -518,6 +519,7 @@
    SnowSDK.WsClient = WsClient;
 })(this);
 // end of ws client
+
 
 // peer agent
 (function(window, undefined) {
