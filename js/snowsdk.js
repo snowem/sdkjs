@@ -61,8 +61,8 @@
    }
 
    SnowSDK.Globals = Globals;
+   SnowSDK.globals_ = new SnowSDK.Globals();
 
-   window.globals_ = SnowSDK.Globals();
 })(this);
 
 
@@ -70,6 +70,7 @@
 (function(window, undefined) {
    'use strict';
    var SnowSDK = window.SnowSDK || {};
+   var globals_ = SnowSDK.globals_ || {};
 
    function Channel(data) {
      console.log("create a channel: " + JSON.stringify(data));
@@ -90,6 +91,8 @@
 
      this.name = data.name;
      this.id = data.channelid;
+     this.flowid = 0;
+     this.key = data.key;
      this.ipaddr = SnowSDK.wss_ip;
      this.port = SnowSDK.wss_port;
      this.type = data.type;
@@ -117,7 +120,9 @@
             }
             self.msgs = []; //reset it.
             self.isReady = true;
-            self.broadcast("onConnected",null);
+            //send channel.connect msg
+            self.sendMessage({'msgtype':globals_.SNW_CHANNEL,'api':globals_.SNW_CHANNEL_CONNECT,
+                              'channelid': self.id, 'key':self.key});
          };
          self.websocket.onmessage = function (evt) {
            if (self.onMessage != null) {
@@ -132,9 +137,37 @@
       }
    }
 
+   Channel.prototype.handleRequest = function(msg) {
+     console.log("handle request: ", msg);
+   }
+
+   Channel.prototype.handleResponse = function(msg) {
+     console.log("handle response: ", msg);
+     if (msg.rc < 0) {
+       console.error("error msg: ", msg.errmsg);
+       return;
+     }
+     if (msg.msgtype == globals_.SNW_CHANNEL ) {
+       switch(msg.api) {
+         case globals_.SNW_CHANNEL_CONNECT:
+           this.flowid = msg.flowid;
+           this.broadcast("onConnected",null);
+           break;
+         default:
+           console.error("unknown channel msg: ", msg);
+           break;
+       }
+     }
+
+   }
+
    Channel.prototype.onMessage = function(evt) {
       var msg = JSON.parse(evt.data);
-      console.log("onMessage: get msg: ", evt.data);
+      if (msg.rc != null) {
+        this.handleResponse(msg);
+      } else {
+        this.handleRequest(msg);
+      }
    }
 
    Channel.prototype.sendMessage = function(message) {
@@ -271,8 +304,8 @@
       data.type = "conference";
 
     if (typeof data.name === 'undefined'
-        || typeof data.token === 'undefined') {
-      console.error("undefined channel name or type");
+        || typeof data.key === 'undefined') {
+      console.error("undefined channel name or key");
       return;
     }
     var msg = {
@@ -280,7 +313,7 @@
       'api': 1,
       'name': data.name,
       'type': data.type,
-      'token': data.token,
+      'key': data.key,
     }
     function onReqSuccess(resp) {
       var channel = new SnowSDK.Channel(resp);
