@@ -47,6 +47,7 @@
       this.SNW_CHANNEL_QUERY = 3;
       this.SNW_CHANNEL_CONNECT = 4;
       this.SNW_CHANNEL_DISCONNECT = 5;
+      this.SNW_CHANNEL_CREATE_STREAM = 6;
 
       this.ACODEC_OPUS = "opus";
       this.ACODEC_PMCU = "pmcu";
@@ -63,6 +64,122 @@
    SnowSDK.Globals = Globals;
    SnowSDK.globals_ = new SnowSDK.Globals();
 
+})(this);
+
+// Stream object
+(function(window, undefined) {
+   'use strict';
+   var SnowSDK = window.SnowSDK || {};
+   var globals_ = SnowSDK.globals_ || {};
+
+   function Stream(audio, video, data, config) {
+
+     this.id = 0;
+     this.audio = false;
+     this.video = false;
+     this.data = false;
+     this.acodec = "opus";
+     this.vcodec = "vp8";
+     this.localStream = null;
+     this.config = {};
+     this.config.mediaConstraints = { audio: true, 
+                                video: {
+                                  mandatory:{
+                                     maxWidth: 480,
+                                     maxHeight: 270,
+                                     minWidth: 480,
+                                     minHeight: 270
+                              }}};
+     this.config.pcConfig = {'iceServers':[{'urls':'stun:stun.l.google.com:19302',
+                                                   'urls':'stun:stun1.l.google.com:19302',
+                                                   'urls':'stun:stun2.l.google.com:19302',
+                                                   'urls':'stun:stun3.l.google.com:19302',
+                                                   'urls':'stun:stun4.l.google.com:19302'}],
+                                    'iceTransports': 'all'};
+     this.config.sdpConstraints = {'mandatory': {
+         'OfferToReceiveAudio':true,
+         'OfferToReceiveVideo':true }}; 
+ 
+     this.listeners = [];
+     this.videoElm = null;
+
+     if (typeof audio !== 'undefined') {
+       this.audio = audio;
+       this.config.mediaConstraints.audio = audio;
+     }
+     if (typeof video !== 'undefined') {
+       this.video = video;
+       this.config.mediaConstraints.video = video;
+     }
+     if (typeof data !== 'undefined') {
+       this.data = data;
+     }
+
+     console.log("create a stream: " + JSON.stringify(this));
+
+   }
+
+   Stream.prototype.play = function(video_elm) {
+     if (!video_elm) return;
+     this.videoElm = video_elm;
+     this.videoElm.srcObject = this.localStream;
+   }
+
+   Stream.prototype.publish = function() {
+     console.log("publish stream: ", this);
+   }
+
+   Stream.prototype.setId = function(id) {
+     this.id = id;
+   }
+
+   Stream.prototype.getId = function() {
+     return this.id;
+   }
+
+   Stream.prototype.getUserMedia = function() {
+     var self = this;
+     navigator.getUserMedia(this.config.mediaConstraints, function(stream) {
+       if (!stream) return;
+       self.localStream = stream;
+       console.log("get media sucessfully, id=" + self.id);
+       self.broadcast("onMediaReady", stream);
+     }, function(info) {
+       console.error("failed to get media");
+     });
+   }
+
+   Stream.prototype.listen = function(eventName, handler) {
+     if (typeof this.listeners[eventName] === 'undefined') {
+       this.listeners[eventName] = [];
+     }
+     this.listeners[eventName].push(handler);
+   }
+
+   Stream.prototype.unlisten = function(eventName, handler) {
+     if (!this.listeners[eventName]) {
+       return;
+     }
+     for (var i = 0; i < this.listeners[eventName].length; i++) {
+       if (this.listeners[eventName][i] === handler) {
+         this.listeners[eventName].splice(i, 1);
+         break;
+       }
+     }
+   };
+
+   Stream.prototype.broadcast = function(eventName,msg) {
+     console.log("stream broadcast, event=" + eventName + ", msg=" + JSON.stringify(msg));
+     if (!this.listeners[eventName]) {
+       console.log("no handler for event, name=" + JSON.stringify(eventName));
+       return; 
+     }
+     for (var i = 0; i < this.listeners[eventName].length; i++) {
+       this.listeners[eventName][i](msg);
+     } 
+   }
+
+   SnowSDK.Stream = Stream;
 })(this);
 
 
@@ -99,6 +216,7 @@
      this.isReady = false;
      this.websocket = null;
      this.publishStreams = [];
+     this.pendingStreams = [];
      this.remoteStreams = [];
      this.listeners = [];
      this.msgs = [];
@@ -121,7 +239,8 @@
             self.msgs = []; //reset it.
             self.isReady = true;
             //send channel.connect msg
-            self.sendMessage({'msgtype':globals_.SNW_CHANNEL,'api':globals_.SNW_CHANNEL_CONNECT,
+            self.sendMessage({'msgtype':globals_.SNW_CHANNEL,
+                              'api':globals_.SNW_CHANNEL_CONNECT,
                               'channelid': self.id, 'key':self.key});
          };
          self.websocket.onmessage = function (evt) {
@@ -137,8 +256,50 @@
       }
    }
 
+   Channel.prototype.publish = function(stream) {
+     console.log("publish a stream");
+     var randomid = Math.floor(Math.random() * 10000);
+     this.pendingStreams.push({'id':randomid,'stream':stream});
+     var msg = {
+       'msgtype': globals_.SNW_CHANNEL,
+       'api': globals_.SNW_CHANNEL_CREATE_STREAM,
+       'channelid': this.id,
+       'flowid': this.flowid,
+       'reqid': randomid
+     };
+     this.sendMessage(msg);
+   }
+
    Channel.prototype.handleRequest = function(msg) {
      console.log("handle request: ", msg);
+   }
+
+   Channel.prototype.handleConnectResp = function(msg) {
+     this.flowid = msg.flowid;
+     this.broadcast("onConnected",null);
+   }
+
+   Channel.prototype.handleCreateStreamResp = function(msg) {
+     console.log("handle request: ", this.pendingStreams);
+     var stream = null;
+     for (var i = 0; i < this.pendingStreams.length; i++) {
+       var item = this.pendingStreams[i];
+       if (msg.reqid == item.id) {
+         stream = item.stream
+         break;
+       }
+     }
+
+     if (!stream) { 
+       console.warn("stream not found");
+       return;
+     }
+     this.pendingStreams.splice(i, 1);
+     
+     //TODO: verify if streamid exists?
+     this.publishStreams.push({'id':msg.streamid, 'stream': stream});
+     stream.setId(msg.streamid);
+     stream.publish();
    }
 
    Channel.prototype.handleResponse = function(msg) {
@@ -150,8 +311,10 @@
      if (msg.msgtype == globals_.SNW_CHANNEL ) {
        switch(msg.api) {
          case globals_.SNW_CHANNEL_CONNECT:
-           this.flowid = msg.flowid;
-           this.broadcast("onConnected",null);
+           this.handleConnectResp(msg);
+           break;
+         case globals_.SNW_CHANNEL_CREATE_STREAM:
+           this.handleCreateStreamResp(msg);
            break;
          default:
            console.error("unknown channel msg: ", msg);
@@ -171,19 +334,20 @@
    }
 
    Channel.prototype.sendMessage = function(message) {
-      if (!this.isReady) {
-         this.msgs.push(message);
-         return;
-      }
-      if (this.websocket) {
-         if (typeof message === 'object') {
-            message = JSON.stringify(message);
-         }
-         console.log("sending msg, msg=", message);
-         this.websocket.send(message);
-      } else {
-         console.warn("websocket not initialized!");
-      }
+     console.log("sending msg, msg=", message);
+     if (!this.isReady) {
+       this.msgs.push(message);
+       return;
+     }
+     if (this.websocket) {
+       if (typeof message === 'object') {
+          message = JSON.stringify(message);
+       }
+       console.log("sending msg, msg=", message);
+       this.websocket.send(message);
+     } else {
+       console.warn("websocket not initialized!");
+     }
    }
 
    Channel.prototype.listen = function(eventName, handler) {
@@ -220,7 +384,6 @@
    SnowSDK.Channel = Channel;
 
 })(this);
-// end of ws client
 
 (function (window) {
   'use strict';
@@ -366,7 +529,7 @@
       console.error("invalid message: channelid or name not found");
     }
   }
- 
+
 })(this);
 
 // SDK Utitlities
@@ -391,6 +554,9 @@
 // SDK configurations
 (function(window, undefined) {
    'use strict';
+   var SnowSDK = window.SnowSDK || {};
+   var globals_ = SnowSDK.globals_ || {};
+
    function Config() {
       // webrtc settings
       this.media_constraints = { audio: true, 
@@ -558,7 +724,7 @@
 (function(window, undefined) {
    'use strict';
    var SnowSDK = window.SnowSDK || {};
-   //var globals = SnowSDK.Globals();
+   var globals_ = SnowSDK.globals_ || {};
 
    function PeerAgent(config){
      this.isReady = 0;
