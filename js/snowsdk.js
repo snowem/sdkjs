@@ -202,8 +202,24 @@
    }
 
    Stream.prototype.onIceConnected = function() {
+      if (this.state === 'connected') return; //already send request
+
+      if (this.type === "pub") {
+         console.log("publishing a stream, channelId=" + this.channelId);
+         this.sendMessage({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_PUBLISH, 
+                 'channelid': this.channelId,
+                 'streamid': this.id});
+      } else if (this.type === "pla") {
+         console.log("playing a stream, channelId=" + this.channelId);
+         this.send({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_PLAY, 
+                 'channelid': this.channelId,
+                 'streamid': this.id});
+      } else {
+         console.log("p2p mode (nothing to do), channelId=" + this.channelId);
+      }
       this.state = 'connected';
       this.broadcast('onIceConnected',null);
+
    }
 
    Stream.prototype.doAnswer = function(msg) {
