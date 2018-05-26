@@ -27,7 +27,7 @@
 
       // EVENT API
       this.SNW_EVENT_ICE_CONNECTED = 1;
-      this.SNW_EVENT_PEER_JOINED = 2;
+      this.SNW_EVENT_NEW_STREAM = 2;
       this.SNW_EVENT_ADD_SUBCHANNEL = 3;
       this.SNW_EVENT_DEL_SUBCHANNEL = 4;
 
@@ -72,19 +72,22 @@
    var SnowSDK = window.SnowSDK || {};
    var globals_ = SnowSDK.globals_ || {};
 
-   function Stream(audio, video, data, config) {
+   function Stream(config) {
 
      this.id = 0;
-     this.name = "LocalCamera";
-     this.channelId = 0;
-     this.type = "pub"; //TODO: default value, set "pla" when it is remote
+     this.remoteId = 0;
      this.audio = false;
      this.video = false;
      this.data = false;
+     this.name = "LocalCamera";
+     this.channelId = 0;
+     this.type = "pub"; //TODO: default value, set "pla" when it is remote
      this.acodec = "opus";
      this.vcodec = "vp8";
      this.localStream = null;
      this.remoteStream = null;
+     this.localVideoElm = null;
+     this.remoteVideoElm = null;
      this.config = {};
      this.config.mediaConstraints = { audio: true, 
                                 video: {
@@ -105,23 +108,31 @@
          'OfferToReceiveVideo':true }}; 
  
      this.listeners = [];
-     this.localVideoElm = null;
-     this.remoteVideoElm = null;
      this.channelObj = null;
      this.pc = null;
      this.state = "disconnected";
 
-     if (typeof audio !== 'undefined') {
-       this.audio = audio;
-       this.config.mediaConstraints.audio = audio;
+     if (typeof config.id !== 'undefined') {
+       this.id = config.id;
      }
-     if (typeof video !== 'undefined') {
-       this.video = video;
-       this.config.mediaConstraints.video = video;
+     if (typeof config.remoteId !== 'undefined') {
+       this.remoteId = config.remoteId;
      }
-     if (typeof data !== 'undefined') {
-       this.data = data;
+     if (typeof config.audio !== 'undefined') {
+       this.audio = config.audio;
+       this.config.mediaConstraints.audio = config.audio;
      }
+     if (typeof config.video !== 'undefined') {
+       this.video = config.video;
+       this.config.mediaConstraints.video = config.video;
+     }
+     if (typeof config.data !== 'undefined') {
+       this.data = config.data;
+     }
+     if (typeof config.type !== 'undefined') {
+       this.type = config.type;
+     }
+
 
      console.log("create a stream: " + JSON.stringify(this));
 
@@ -175,9 +186,10 @@
       }   
 
       function onaddstream(event) {
-        console.log('Remote stream added, src:' + self.remote_video_elm);
+        console.log('Remote stream added, src:' + self.remoteVideoElm);
         self.remoteStream = event.stream;
-        //self.remoteVideoElm.srcObject = event.stream;
+        if (self.remoteVideoElm)
+          self.remoteVideoElm.srcObject = event.stream;
       }   
 
       function onremovestream(event) {
@@ -205,14 +217,15 @@
       if (this.state === 'connected') return; //already send request
 
       if (this.type === "pub") {
-         console.log("publishing a stream, channelId=" + this.channelId);
+         console.warn("publishing a stream, channelId=" + this.channelId);
          this.sendMessage({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_PUBLISH, 
                  'channelid': this.channelId,
                  'streamid': this.id});
       } else if (this.type === "pla") {
-         console.log("playing a stream, channelId=" + this.channelId);
-         this.send({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_PLAY, 
+         console.warn("playing a stream, channelId=" + this.channelId);
+         this.sendMessage({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_PLAY, 
                  'channelid': this.channelId,
+                 'publishid': this.remoteId,
                  'streamid': this.id});
       } else {
          console.log("p2p mode (nothing to do), channelId=" + this.channelId);
@@ -271,19 +284,35 @@
      }
    }
 
+   Stream.prototype.connect = function() {
+     console.log("connect stream: ", this.id);
+     this.sendMessage({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_CONNECT,
+                'channelid': this.channelId, 'peer_type': this.type, 'video_codec': this.vcodec,
+                'name': this.name, 'streamid': this.id});
+   }
+
    Stream.prototype.play = function(video_elm) {
-     if (!video_elm) return;
-     this.localVideoElm = video_elm;
-     this.localVideoElm.srcObject = this.localStream;
+     if (this.type === "pub") {
+       if (!video_elm) return;
+       this.localVideoElm = video_elm;
+       this.localVideoElm.srcObject = this.localStream;
+     }
+     if (this.type === "pla") {
+       this.remoteVideoElm = video_elm;
+       this.createPeerConnection(null);
+       this.connect();
+     }
    }
 
    Stream.prototype.publish = function() {
      console.log("publish stream: ", this.id);
-     //FIXME: check if localStream exists or what?
-     this.createPeerConnection(this.localStream);
-     this.sendMessage({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_CONNECT,
-                'channelid': this.channelId, 'peer_type': this.type, 'video_codec': this.vcodec,
-                'name': this.name, 'streamid': this.id});
+     if (this.type === "pub") {
+       //TODO: check if localStream exists or what?
+       this.createPeerConnection(this.localStream);
+       this.connect();
+     } else {
+       console.warn("Try to publish a non-publishing stream")
+     }
    }
 
    Stream.prototype.setId = function(id) {
@@ -410,8 +439,8 @@
      this.isReady = false;
      this.websocket = null;
      this.publishStreams = [];
+     this.playStreams = [];
      this.pendingStreams = [];
-     this.remoteStreams = [];
      this.listeners = [];
      this.msgs = [];
    }
@@ -464,8 +493,32 @@
      this.sendMessage(msg);
    }
 
+   Channel.prototype.play = function(stream) {
+     console.log("play a stream");
+     var msg = {
+       'msgtype': globals_.SNW_SIG,
+       'api': globals_.SNW_SIG_CONNECT,
+       'channelid': this.id,
+       'streamid': stream.getId()
+     };
+     this.sendMessage(msg);
+   }
+
+   Channel.prototype.handleEvent = function(msg) {
+     console.log("handle event: " + JSON.stringify(msg));
+     switch(msg.api) {
+       case globals_.SNW_EVENT_NEW_STREAM:
+         this.handleRemoteStreams(msg.streams);
+         break;
+       default:
+         console.error("unknown event msg: ", msg);
+         break;
+     }
+ 
+   }
+
    Channel.prototype.handleRequest = function(msg) {
-     console.log("handle request: ", msg);
+     console.log("handle request: " + JSON.stringify(msg));
 
      if (msg.msgtype == globals_.SNW_ICE ) {
        var streamid = msg.streamid;
@@ -475,12 +528,82 @@
        } else {
          console.warn("stream not found, id=" + streamid);
        }
+       return;
+     }
+     
+     if (msg.msgtype == globals_.SNW_EVENT ) {
+       this.handleEvent(msg);
+       return;
      }
 
+     console.log("unknown request: " + JSON.stringify(msg));
+   }
+
+   Channel.prototype.handleRemoteStreams = function(streams) {
+     console.log("got published streams: " + JSON.stringify(streams));
+     for (var i in streams) {
+       console.log("got published streamid=" + streams[i].streamid);
+       
+       if (this.getStreamById(streams[i].streamid)) {
+         // stream already exists
+         console.log("stream exists, streamid=" + streams[i].streamid);
+         return;
+       }
+       //create Stream
+       var config = {
+         'remoteId'   : streams[i].streamid,
+         'audio': true,
+         'video': true,
+         'data':  false,
+         'type': "pla"
+       }
+       var stream = new SnowSDK.Stream(config);
+
+       var randomid = Math.floor(Math.random() * 10000);
+       this.pendingStreams.push({'id':randomid,'stream':stream});
+       var msg = {
+         'msgtype': globals_.SNW_CHANNEL,
+         'api': globals_.SNW_CHANNEL_CREATE_STREAM,
+         'channelid': this.id,
+         'flowid': this.flowid,
+         'reqid': randomid
+       };
+       this.sendMessage(msg);
+     }
    }
 
    Channel.prototype.handleConnectResp = function(msg) {
      this.flowid = msg.flowid;
+     if (msg.streams) {
+       console.log("got published streams: " + JSON.stringify(msg.streams));
+       this.handleRemoteStreams(msg.streams);
+
+       /*for(var i in msg.streams) {
+         console.log("got published streamid=" + msg.streams[i].streamid);
+         //create Stream
+         var config = {
+           'remoteId'   : msg.streams[i].streamid,
+           'audio': true,
+           'video': true,
+           'data':  false,
+           'type': "pla"
+         }
+         var stream = new SnowSDK.Stream(config);
+
+         var randomid = Math.floor(Math.random() * 10000);
+         this.pendingStreams.push({'id':randomid,'stream':stream});
+         var msg = {
+           'msgtype': globals_.SNW_CHANNEL,
+           'api': globals_.SNW_CHANNEL_CREATE_STREAM,
+           'channelid': this.id,
+           'flowid': this.flowid,
+           'reqid': randomid
+         };
+         this.sendMessage(msg);
+       }*/
+     } else {
+       console.log("no published stream");
+     }
      this.broadcast("onConnected",null);
    }
 
@@ -502,22 +625,44 @@
      this.pendingStreams.splice(i, 1);
      
      //TODO: verify if streamid exists?
-     this.publishStreams.push({'id':msg.streamid, 'stream': stream});
-     stream.setId(msg.streamid);
-     stream.setChannelId(this.id);
-     stream.setChannelObj(this);
-     stream.publish();
+     if (stream.type === "pub") {
+       console.warn("got stream id for publisher");
+       this.publishStreams.push({'id':msg.streamid, 'stream': stream});
+       stream.setId(msg.streamid);
+       stream.setChannelId(this.id);
+       stream.setChannelObj(this);
+       stream.publish();
+     }
+
+     if (stream.type === "pla") {
+       console.warn("got stream id for player");
+       this.playStreams.push({'id':msg.streamid, 'stream': stream});
+       stream.setId(msg.streamid);
+       stream.setChannelId(this.id);
+       stream.setChannelObj(this);
+       //stream.play();
+       this.broadcast("onAddStream",stream);
+     }
    }
 
    Channel.prototype.getStreamById = function(id) {
      var stream = null;
+
      for (var i = 0; i < this.publishStreams.length; i++) {
        var item = this.publishStreams[i];
        if (item.id == id) {
          stream = item.stream
-         break;
+         return stream;
        }
      }
+     for (var i = 0; i < this.playStreams.length; i++) {
+       var item = this.playStreams[i];
+       if (item.id == id) {
+         stream = item.stream
+         return stream;
+       }
+     }
+
      return stream;
    }
 
@@ -598,7 +743,7 @@
    };
 
    Channel.prototype.broadcast = function(eventName,msg) {
-      console.log("channel broadcast, event=" + eventName + ", msg=" + JSON.stringify(msg));
+      console.log("channel broadcast, event=" + eventName);
       if (!this.listeners[eventName]) {
          console.log("no handler for event, name=" + JSON.stringify(eventName));
          return; 
@@ -1281,7 +1426,7 @@
             console.log("ice connected (depracated version)");
             return;
          }
-         if (msg.api == globals_.SNW_EVENT_PEER_JOINED) {
+         if (msg.api == globals_.SNW_EVENT_NEW_STREAM) {
             this.broadcast('onPeerJoined',msg);
             this.onPeerJoined(msg);
             return;
