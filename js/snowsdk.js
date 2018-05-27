@@ -59,6 +59,11 @@
       this.CONF_CHANNEL_TYPE = 0; //"conference";
       this.CALL_CHANNEL_TYPE = 1; //"call";
       this.LIVE_CHANNEL_TYPE = 2; //"broadcast";
+
+      this.UNKNOWN_STREAM_TYPE = 0;
+      this.PUBLISHER_STREAM_TYPE = 1;
+      this.SUBSCRIBER_STREAM_TYPE = 2;
+      this.P2P_STREAM_TYPE = 3;
    }
 
    SnowSDK.Globals = Globals;
@@ -81,7 +86,7 @@
      this.data = false;
      this.name = "LocalCamera";
      this.channelId = 0;
-     this.type = "pub"; //TODO: default value, set "pla" when it is remote
+     this.type = globals_.PUBLISHER_STREAM_TYPE;
      this.acodec = "opus";
      this.vcodec = "vp8";
      this.localStream = null;
@@ -129,8 +134,14 @@
      if (typeof config.data !== 'undefined') {
        this.data = config.data;
      }
+
+     console.log("create a stream type: " + JSON.stringify(config.type));
      if (typeof config.type !== 'undefined') {
-       this.type = config.type;
+       if ( config.type === "publisher") {
+         this.type = globals_.PUBLISHER_STREAM_TYPE;
+       } else if (config.type === "subscriber") {
+         this.type = globals_.SUBSCRIBER_STREAM_TYPE;
+       }
      }
 
      console.log("create a stream: " + JSON.stringify(this));
@@ -214,12 +225,12 @@
    Stream.prototype.onIceConnected = function() {
       if (this.state === 'connected') return; //already send request
 
-      if (this.type === "pub") {
+      if (this.type === globals_.PUBLISHER_STREAM_TYPE) {
          console.warn("publishing a stream, channelId=" + this.channelId);
          this.sendMessage({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_PUBLISH, 
                  'channelid': this.channelId,
                  'streamid': this.id});
-      } else if (this.type === "pla") {
+      } else if (this.type === globals_.SUBSCRIBER_STREAM_TYPE) {
          console.warn("playing a stream, channelId=" + this.channelId);
          this.sendMessage({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_PLAY, 
                  'channelid': this.channelId,
@@ -283,19 +294,19 @@
    }
 
    Stream.prototype.connect = function() {
-     console.log("connect stream: ", this.id);
+     console.log("connect stream: ", this.type);
      this.sendMessage({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_CONNECT,
-                'channelid': this.channelId, 'peer_type': this.type, 'video_codec': this.vcodec,
+                'channelid': this.channelId, 'stream_type': this.type, 'video_codec': this.vcodec,
                 'name': this.name, 'streamid': this.id});
    }
 
    Stream.prototype.play = function(video_elm) {
-     if (this.type === "pub") {
+     if (this.type === globals_.PUBLISHER_STREAM_TYPE) {
        if (!video_elm) return;
        this.localVideoElm = video_elm;
        this.localVideoElm.srcObject = this.localStream;
      }
-     if (this.type === "pla") {
+     if (this.type === globals_.SUBSCRIBER_STREAM_TYPE) {
        this.remoteVideoElm = video_elm;
        this.createPeerConnection(null);
        this.connect();
@@ -304,7 +315,7 @@
 
    Stream.prototype.publish = function() {
      console.log("publish stream: ", this.id);
-     if (this.type === "pub") {
+     if (this.type === globals_.PUBLISHER_STREAM_TYPE) {
        //TODO: check if localStream exists or what?
        this.createPeerConnection(this.localStream);
        this.connect();
@@ -574,7 +585,7 @@
          'audio': true,
          'video': true,
          'data':  false,
-         'type': "pla"
+         'type': "subscriber"
        }
        var stream = new SnowSDK.Stream(config);
 
@@ -671,8 +682,9 @@
      }
      this.pendingStreams.splice(i, 1);
      
+     console.warn("got stream id for publisher: " + JSON.stringify(stream));
      //TODO: verify if streamid exists?
-     if (stream.type === "pub") {
+     if (stream.type === globals_.PUBLISHER_STREAM_TYPE) {
        console.warn("got stream id for publisher");
        this.publishStreams.push({'id':msg.streamid, 'stream': stream});
        stream.setId(msg.streamid);
@@ -681,7 +693,7 @@
        stream.publish();
      }
 
-     if (stream.type === "pla") {
+     if (stream.type === globals_.SUBSCRIBER_STREAM_TYPE) {
        console.warn("got stream id for player");
        this.playStreams.push({'id':msg.streamid, 'stream': stream});
        stream.setId(msg.streamid);
@@ -763,7 +775,6 @@
        if (typeof message === 'object') {
           message = JSON.stringify(message);
        }
-       console.log("sending msg, msg=", message);
        this.websocket.send(message);
      } else {
        console.warn("websocket not initialized!");
