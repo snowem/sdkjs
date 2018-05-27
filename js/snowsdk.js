@@ -56,10 +56,9 @@
       this.VCODEC_VP8 = "vp8";
       this.VCODEC_VP9 = "vp9";
 
-      //FIXME: p2p and group
-      this.BCAST_CHANNEL_TYPE = "broadcast";
-      this.CALL_CHANNEL_TYPE = "call";
-      this.CONF_CHANNEL_TYPE = "conference";
+      this.CONF_CHANNEL_TYPE = 0; //"conference";
+      this.CALL_CHANNEL_TYPE = 1; //"call";
+      this.LIVE_CHANNEL_TYPE = 2; //"broadcast";
    }
 
    SnowSDK.Globals = Globals;
@@ -434,15 +433,25 @@
      if (typeof data.type === 'undefined') {
        console.error("channel type not found");
        return null;
+     } else {
+       this.type = data.type;
      }
 
-     this.name = data.name;
-     this.id = data.channelid;
+     if (typeof data.name !== 'undefined') {
+       this.name = data.name;
+     }
+
+     if (typeof data.channelid !== 'undefined') {
+       this.id = data.channelid;
+     }
+
+     if (typeof data.key !== 'undefined') {
+       this.key = data.key;
+     }
+
      this.flowid = 0;
-     this.key = data.key;
      this.ipaddr = SnowSDK.wss_ip;
      this.port = SnowSDK.wss_port;
-     this.type = data.type;
      this.isReady = false;
      this.websocket = null;
      this.publishStreams = [];
@@ -799,6 +808,7 @@
 (function (window) {
   'use strict';
   var SnowSDK = window.SnowSDK || {};
+  var globals_ = SnowSDK.globals_ || {};
 
   SnowSDK.init = function(config) {
     if (typeof config === 'undefined') {
@@ -874,8 +884,23 @@
   }
 
   SnowSDK.createChannel = function(data,onSuccess,onError) {
-    if (typeof data.type === 'undefined')
-      data.type = "conference";
+    var type;
+    if (typeof data.type === 'undefined') {
+      type = globals_.CONF_CHANNEL_TYPE;
+    } else {
+       if (data.type === "conference") {
+         type = globals_.CONF_CHANNEL_TYPE;
+       }
+       else if (data.type === "call") {
+         type = globals_.CALL_CHANNEL_TYPE;
+       }
+       else if (data.type === "live") {
+         type = globals_.LIVE_CHANNEL_TYPE;
+       }
+       else {
+         console.error("channel type must be 'conference' or 'call' or 'live'");
+       }
+    }
 
     if (typeof data.name === 'undefined'
         || typeof data.key === 'undefined') {
@@ -886,7 +911,7 @@
       'msgtype': 5,
       'api': 1,
       'name': data.name,
-      'type': data.type,
+      'type': type,
       'key': data.key,
     }
     function onReqSuccess(resp) {
@@ -990,7 +1015,7 @@
 
       // channel info
       this.name = "default";
-      this.channel_type = globals_.BCAST_CHANNEL_TYPE;
+      this.channel_type = globals_.LIVE_CHANNEL_TYPE;
       this.enable_video = 1; //: 0 disbale, 1: enable
       this.audio_codec = globals_.VAUDIO_OPUS;
       this.video_codec = globals_.VCODEC_H264;
