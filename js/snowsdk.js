@@ -27,9 +27,10 @@
 
       // EVENT API
       this.SNW_EVENT_ICE_CONNECTED = 1;
-      this.SNW_EVENT_NEW_STREAM = 2;
-      this.SNW_EVENT_ADD_SUBCHANNEL = 3;
-      this.SNW_EVENT_DEL_SUBCHANNEL = 4;
+      this.SNW_EVENT_ADD_STREAM = 2;
+      this.SNW_EVENT_REMOVE_STREAM = 3;
+      this.SNW_EVENT_ADD_SUBCHANNEL = 4;
+      this.SNW_EVENT_DEL_SUBCHANNEL = 5;
 
       // SIG API
       this.SNW_SIG_AUTH = 1;
@@ -133,9 +134,7 @@
        this.type = config.type;
      }
 
-
      console.log("create a stream: " + JSON.stringify(this));
-
    }
 
    Stream.prototype.createPeerConnection = function(stream) {
@@ -314,6 +313,14 @@
        console.warn("Try to publish a non-publishing stream")
      }
    }
+
+   Stream.prototype.stop = function() {
+      if (this.state === 'connected') {
+        console.log("stop stream: "+ this.id);
+        this.pc.close();
+      }
+   }
+
 
    Stream.prototype.setId = function(id) {
      this.id = id;
@@ -507,8 +514,11 @@
    Channel.prototype.handleEvent = function(msg) {
      console.log("handle event: " + JSON.stringify(msg));
      switch(msg.api) {
-       case globals_.SNW_EVENT_NEW_STREAM:
-         this.handleRemoteStreams(msg.streams);
+       case globals_.SNW_EVENT_ADD_STREAM:
+         this.handleAddStreams(msg.streams);
+         break;
+       case globals_.SNW_EVENT_REMOVE_STREAM:
+         this.handleRemoveStreams(msg.streams);
          break;
        default:
          console.error("unknown event msg: ", msg);
@@ -539,7 +549,7 @@
      console.log("unknown request: " + JSON.stringify(msg));
    }
 
-   Channel.prototype.handleRemoteStreams = function(streams) {
+   Channel.prototype.handleAddStreams = function(streams) {
      console.log("got published streams: " + JSON.stringify(streams));
      for (var i in streams) {
        console.log("got published streamid=" + streams[i].streamid);
@@ -572,11 +582,39 @@
      }
    }
 
+   Channel.prototype.stopStream = function(stream) {
+      stream.stop();
+       var msg = {
+         'msgtype': globals_.SNW_ICE,
+         'api': globals_.SNW_ICE_STOP,
+         'channelid': this.id,
+         'streamid': stream.id
+       };
+       this.sendMessage(msg);
+       this.broadcast("onRemoveStream", stream);
+   }
+
+   Channel.prototype.handleRemoveStreams = function(streams) {
+     console.log("got removed streams: " + JSON.stringify(streams));
+     for (var i in streams) {
+       var id = streams[i].streamid;
+       for (var k = 0; k < this.playStreams.length; k++) {
+         var stream = this.playStreams[k].stream;
+         console.log("check stream: " + stream.remoteId);
+         if (stream.remoteId == id) {
+           console.log("remove playing stream " + stream.id);
+           this.playStreams.splice(i, 1);
+           this.stopStream(stream);
+         }
+       }
+     }
+   }
+
    Channel.prototype.handleConnectResp = function(msg) {
      this.flowid = msg.flowid;
      if (msg.streams) {
        console.log("got published streams: " + JSON.stringify(msg.streams));
-       this.handleRemoteStreams(msg.streams);
+       this.handleAddStreams(msg.streams);
 
        /*for(var i in msg.streams) {
          console.log("got published streamid=" + msg.streams[i].streamid);
