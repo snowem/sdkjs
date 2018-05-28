@@ -1,6 +1,6 @@
 window.snowAsyncInit = function() {
    var config = {
-      'wss_ip': "127.0.0.1",
+      'wss_ip': "192.168.1.187",
       'wss_port': 8443
    };
    SnowSDK.init(config);
@@ -18,61 +18,57 @@ function createVideoBox(channelid) {
 }
 
 function start_app() { 
-   var isPublisher = 0;
-   var channelid = 0;
-   var publishingPeer = null;
-   var playingPeer = null;
-   var config = {
-      'video_codec': "h264",
-   };
+  var channel = null;
+  var config = {
+    'audio': true,
+    'video': true,
+    'data' : true
+  };
+  var stream = new SnowSDK.Stream(config);
 
-   function onSuccess(resp) {
-     console.log("resp: " + resp);
-     var joinChannelId = resp.channelid;
-     console.log("join channel: ", joinChannelId);
-     $("#joinRoomSectionId").hide();
-     $("#joinedRoomSectionId").show();
-     $("#conferenceSectionId").show();
-     $("#joinedChannelId").text(""+joinChannelId);
+  function onSuccess(data) {
+     channel = data;
+     channel.listen("onConnected", function() {
+       stream.listen("onMediaReady", function(info) {
+         stream.setLocalVideoElm(document.getElementById('localVideo'));
+         channel.publish(stream);
+       });
+       stream.getUserMedia();
+     });
 
-     publishingPeer = SnowSDK.createPeer(config);
-     publishingPeer.onAddPeerStream = function(info) {
-       var name = "playRemoteVideo" + info.peerid;
-       createVideoBox(info.peerid);
+     channel.listen("onAddStream", function(stream) {
+       var name = "playRemoteVideo" + stream.getId();
+       createVideoBox(stream.getId());
        var remote_video_elm = document.getElementById(name);
 
-       console.log("new stream added: ",name);
-       remote_video_elm.autoPlay = true;
-       remote_video_elm.srcObject = info.stream;
-     }
-     publishingPeer.onRemovePeerStream = function(info) {
-       var name = "videoBoxId" + info.peerid;
-       console.log("removing video: " + name);
+       console.log("onAddStream: got remote stream " + JSON.stringify(stream.getId()));
+       stream.setRemoteVideoElm(remote_video_elm);
+       channel.play(stream);
+     });
+
+     channel.listen("onRemoveStream", function(stream) {
+       var name = "videoBoxId" + stream.getId();
        $("#"+name).remove();
-     }
+     });
 
-     var settings = {
-        'channelid': parseInt(joinChannelId),
-        'local_video_elm': document.getElementById('localVideo'),
-        'remote_video_elm': null
-     };
-     publishingPeer.publish(settings);
-   }
+     channel.connect();
+  }
 
-   function onError(resp) {
+  function onError(resp) {
      console.log("resp: " + resp);
-   }
+  }
 
-   $("#joinedRoomSectionId").hide();
-   $("#conferenceSectionId").hide();
-   $("#templateVideoBoxId").hide();
-   $("#joinRoomBtn").click(function() {
-     var data = {
-       'name': $("#joinRoomChannelId").val(),
-       'type': 'conference',
-       'token': 'tbd'
-     }
-     SnowSDK.createChannel(data, onSuccess, onError);
-   });
+  $("#joinedRoomSectionId").hide();
+  $("#conferenceSectionId").hide();
+  $("#templateVideoBoxId").hide();
+  $("#joinRoomBtn").click(function() {
+    var info = {
+      'name': $("#joinRoomChannelId").val(),
+      'type': 'conference',
+      'key': 'none'
+    }
+    SnowSDK.createChannel(info, onSuccess, onError);
+  });
+
 }
 
