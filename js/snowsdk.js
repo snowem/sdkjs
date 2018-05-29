@@ -29,6 +29,9 @@
       this.SNW_EVENT_ICE_CONNECTED = 1;
       this.SNW_EVENT_ADD_STREAM = 2;
       this.SNW_EVENT_REMOVE_STREAM = 3;
+      this.SNW_EVENT_JOINED_STREAM = 4;
+
+      //TODO: remove these events
       this.SNW_EVENT_ADD_SUBCHANNEL = 4;
       this.SNW_EVENT_DEL_SUBCHANNEL = 5;
 
@@ -57,7 +60,7 @@
       this.VCODEC_VP9 = "vp9";
 
       this.CONF_CHANNEL_TYPE = 0; //"conference";
-      this.CALL_CHANNEL_TYPE = 1; //"call";
+      this.P2P_CHANNEL_TYPE = 1;  //"p2p";
       this.LIVE_CHANNEL_TYPE = 2; //"broadcast";
 
       this.UNKNOWN_STREAM_TYPE = 0;
@@ -553,6 +556,9 @@
        case globals_.SNW_EVENT_REMOVE_STREAM:
          this.handleRemoveStreams(msg.streams);
          break;
+       case globals_.SNW_EVENT_JOINED_STREAM:
+         this.handleJoinedStreams(msg);
+         break;
        default:
          console.error("unknown event msg: ", msg);
          break;
@@ -636,6 +642,10 @@
          }
        }
      }
+   }
+
+   Channel.prototype.handleJoinedStreams = function(msg) {
+     console.log("got joined stream: " + JSON.stringify(msg));
    }
 
    Channel.prototype.handleConnectResp = function(msg) {
@@ -873,14 +883,14 @@
        if (data.type === "conference") {
          type = globals_.CONF_CHANNEL_TYPE;
        }
-       else if (data.type === "call") {
-         type = globals_.CALL_CHANNEL_TYPE;
+       else if (data.type === "p2p") {
+         type = globals_.P2P_CHANNEL_TYPE;
        }
        else if (data.type === "live") {
          type = globals_.LIVE_CHANNEL_TYPE;
        }
        else {
-         console.error("channel type must be 'conference' or 'call' or 'live'");
+         console.error("channel type must be 'conference' or 'p2p' or 'live'");
        }
     }
 
