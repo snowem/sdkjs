@@ -366,15 +366,23 @@
    }
 
 
-   Stream.prototype.getUserMedia = function() {
+   Stream.prototype.getUserMedia = function(config) {
      var self = this;
-     navigator.getUserMedia(this.config.mediaConstraints, function(stream) {
-       if (!stream) return;
-       self.localStream = stream;
-       self.broadcast("onMediaReady", stream);
-     }, function(info) {
-       console.error("failed to get media");
-     });
+     if ( typeof config === "undefined" || config.type === "camera") {
+       navigator.getUserMedia(this.config.mediaConstraints, function(stream) {
+         if (!stream) return;
+         self.localStream = stream;
+         self.broadcast("onMediaReady", stream);
+       }, function(info) {
+         console.error("failed to get media");
+       });
+     } else {
+       if (config.type === "video" && config.tag !== null) {
+         console.log("get video stream: " + config.tag);
+         self.localStream = document.getElementById(config.tag).captureStream();
+         self.broadcast("onMediaReady", self.localStream);
+       }
+     }
    }
 
    Stream.prototype.listen = function(eventName, handler) {
@@ -445,13 +453,27 @@
    var globals_ = SnowSDK.globals_ || {};
 
    function Channel(data) {
-     if (typeof data.name === 'undefined') {
-       console.error("channel name not found");
+     this.id = 0;
+     this.flowid = 0;
+     this.ipaddr = SnowSDK.wss_ip;
+     this.port = SnowSDK.wss_port;
+     this.isReady = false;
+     this.websocket = null;
+     this.publishStreams = [];
+     this.playStreams = [];
+     this.pendingStreams = [];
+     this.listeners = [];
+     this.msgs = [];
+
+     if (typeof data.channelid !== 'undefined') {
+       this.id = data.channelid;
+     } else {
+       console.error("channel id not found");
        return null;
      }
 
-     if (typeof data.channelid === 'undefined') {
-       console.error("channel id not found");
+     if (typeof data.name === 'undefined') {
+       console.error("channel name not found");
        return null;
      }
 
@@ -466,24 +488,10 @@
        this.name = data.name;
      }
 
-     if (typeof data.channelid !== 'undefined') {
-       this.id = data.channelid;
-     }
-
      if (typeof data.key !== 'undefined') {
        this.key = data.key;
      }
 
-     this.flowid = 0;
-     this.ipaddr = SnowSDK.wss_ip;
-     this.port = SnowSDK.wss_port;
-     this.isReady = false;
-     this.websocket = null;
-     this.publishStreams = [];
-     this.playStreams = [];
-     this.pendingStreams = [];
-     this.listeners = [];
-     this.msgs = [];
    }
 
    Channel.prototype.connect = function() {
