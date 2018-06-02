@@ -630,13 +630,14 @@
    Channel.prototype.handleEvent = function(msg) {
      switch(msg.api) {
        case globals_.SNW_EVENT_ADD_STREAM:
-         this.handleAddStreams(msg.streams);
+         if (msg.type == globals_.P2P_CHANNEL_TYPE) {
+           this.handleJoinedStreams(msg);
+         } else {
+           this.handleAddStreams(msg.streams);
+         }
          break;
        case globals_.SNW_EVENT_REMOVE_STREAM:
          this.handleRemoveStreams(msg.streams);
-         break;
-       case globals_.SNW_EVENT_JOINED_STREAM:
-         this.handleJoinedStreams(msg);
          break;
        default:
          console.error("unknown event msg: ", msg);
@@ -680,6 +681,9 @@
    }
 
    Channel.prototype.handleAddStreams = function(streams) {
+
+     console.log("add stream: " + JSON.stringify(streams));
+
      for (var i in streams) {
        //got published stream
        if (this.getStreamById(streams[i].streamid)) {
@@ -738,7 +742,8 @@
    }
 
    Channel.prototype.handleJoinedStreams = function(msg) {
-     //console.log("got joined stream: " + JSON.stringify(msg));
+     console.log("got joined stream: type=" + this.type);
+     console.log("got joined stream: " + JSON.stringify(msg));
      var config = {
          'id': this.flowid,
          'remoteId'   : msg.flowid,
@@ -752,7 +757,7 @@
      stream.setChannelObj(this);
      stream.makecall = msg.action;
      this.publishStreams.push({'id':stream.id, 'stream': stream});
-     this.broadcast("onJoinedStream",stream);
+     this.broadcast("onAddStream",stream);
    }
 
    Channel.prototype.handleConnectResp = function(msg) {
