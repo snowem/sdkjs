@@ -1,6 +1,6 @@
 window.snowAsyncInit = function() {
    var config = {
-      'wss_ip': "192.168.1.187",
+      'wss_ip': "wss.snowem.io",
       'wss_port': 8443
    };
    SnowSDK.init(config);
