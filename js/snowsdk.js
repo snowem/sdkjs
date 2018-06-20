@@ -106,17 +106,14 @@
                                      minWidth: 480,
                                      minHeight: 270
                               }}};
-     /*this.config.pcConfig = {'iceServers':[{'urls':'stun:stun.l.google.com:19302',
+     this.config.pcConfig = {'iceServers':[{'urls':'stun:stun.l.google.com:19302',
                                             'urls':'stun:stun1.l.google.com:19302',
                                             'urls':'stun:stun2.l.google.com:19302',
                                             'urls':'stun:stun3.l.google.com:19302',
                                             'urls':'stun:stun4.l.google.com:19302'}],
-                                    'iceTransports': 'all'};*/
-
-     this.config.pcConfig = {'iceServers':[{'urls':'stun:stun.l.google.com:19302'},
-                                           {'urls':'turn:49.213.76.92:8479','credential':'webrtc', 'username':'webrtc'}],
                                     'iceTransports': 'all'};
 
+     //TODO: chrome and firefox do differently here
      this.config.sdpConstraints = {'mandatory': {
          'OfferToReceiveAudio':true,
          'OfferToReceiveVideo':true }}; 
@@ -125,6 +122,10 @@
      this.channelObj = null;
      this.pc = null;
      this.state = "disconnected";
+
+     if (typeof config.sdpConstraints !== 'undefined') {
+       this.config.sdpConstraints = config.sdpConstraints;
+     }
 
      if (typeof config.id !== 'undefined') {
        this.id = config.id;
