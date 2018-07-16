@@ -1,7 +1,5 @@
 This is javascript sdk for snowem streaming server. You can use it to create a channel and to publish/play a media stream on a channel.
-
 ### Setup A Demo Webapp
-
 Prerequisite: install nodejs and express framework.
 ```
 curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
@@ -36,51 +34,53 @@ window.snowAsyncInit = function() {
 }
 
 function start_app() {
-   function onSuccess(resp) {
+  var channel = null;
+  var config = {
+    'audio': true,
+    'video': true,
+  };
+  var stream = new SnowSDK.Stream(config);
+
+  function onSuccess(data) {
+     channel = data;
+     channel.listen("onConnected", function() {
+       stream.listen("onMediaReady", function(info) {
+         //publish a ready stream
+         channel.publish(stream);
+       });
+       stream.getUserMedia();
+     });
+
+     channel.listen("onAddStream", function(stream) {
+       //got remote stream
+       stream.setRemoteVideoElm(document.getElementById(some_video_tag));
+       channel.play(stream);
+     });
+
+     channel.listen("onRemoveStream", function(stream) {
+       // remote stream removed
+     });
+
+     channel.connect();
+  }
+
+  function onError(resp) {
      console.log("resp: " + resp);
-     var joinChannelId = resp.channelid;
-
-     // create a peer
-     peer = SnowSDK.createPeer(config);
-     peer.onAddPeerStream = function(info) {
-       var name = "playRemoteVideo" + info.peerid;
-       var remote_video_elm = document.getElementById(name);
-       remote_video_elm.autoPlay = true;
-       remote_video_elm.srcObject = info.stream;
-     }   
-     publishingPeer.onRemovePeerStream = function(info) {
-       var name = "videoBoxId" + info.peerid;
-       console.log("removing video: " + name);
-       //todo:
-     }   
-
-     //publish camera to channelid
-     var settings = { 
-        'channelid': parseInt(joinChannelId),
-        'local_video_elm': document.getElementById('localVideo'),
-        'remote_video_elm': null
-     };
-     peer.publish(settings);
-   }   
-
-   function onError(resp) {
-     console.log("resp: " + resp);
-   }
-
-   $("#joinRoomBtn").click(function() {
-     //create a channel
-     var channel = {
-        'name': 'snowem-example',
-        'type': 'conference'
-     }
-     SnowSDK.createChannel(channel, onSuccess, onError);
-   });
+  }
+  
+  var info = {
+  'name': 'snowem_room',
+  'type': 'conference',
+  'key': 'none'
+  }
+  SnowSDK.createChannel(info, onSuccess, onError);
 }
 ```
 
 When SnowSDK is loaded, it invokes _snowAsyncInit_ if it is defined. Once it is called, you can initlialize SnowSDK with _init_ function. 
-The _init_ function requires domain name or ip address of Snowem Websocket Service. 
+The _init_ function requires domain name or ip address of Snowem server. 
 
 Check [here](https://github.com/snowem/sdkjs/blob/master/js/app.js) for more details on example code.
+
 
 
