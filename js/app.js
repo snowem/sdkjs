@@ -1,6 +1,6 @@
 window.snowAsyncInit = function() {
    var config = {
-      'wss_ip': "wss.snowem.io",
+      'wss_ip': "localhost",
       'wss_port': 8443
    };
    SnowSDK.init(config);
@@ -17,7 +17,7 @@ function createVideoBox(channelid) {
      $('#confRoomId').append(a);
 }
 
-function start_app() { 
+function start_app() {
   var channel = null;
   var config = {
     'audio': true,
