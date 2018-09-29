@@ -422,7 +422,6 @@
 
    Stream.prototype.stop = function() {
       if (this.state === 'connected') {
-        console.log("stop stream: "+ this.id);
         this.pc.close();
       }
    }
@@ -908,6 +907,19 @@
       for (var i = 0; i < this.listeners[eventName].length; i++) {
          this.listeners[eventName][i](msg);
       } 
+   }
+
+   Channel.prototype.stop = function() {
+     for (var i = 0; i < this.publishStreams.length; i++) {
+       this.publishStreams[i].stream.stop();
+     }
+     for (var i = 0; i < this.playStreams.length; i++) {
+       this.playStreams[i].stream.stop();
+     }
+     if (this.websocket) {
+       this.websocket.close();
+       this.websocket = null;
+     }
    }
 
    SnowSDK.Channel = Channel;
