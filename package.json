@@ -1,12 +1,15 @@
 {
-  "name": "snow",
+  "name": "snowem",
   "version": "1.0.0",
   "description": "",
-  "main": "dist/index.js",
+  "main": "dist/snowem.min.js",
   "scripts": {
-    "babel": "babel src/index.js -o example/main.bundle.js",
-    "start": "http-server",
-    "webpack": "webpack"
+    "babel": "babel src/index.js -o dist/snowem.min.js",
+    "webpack": "webpack",
+    "build": "webpack --env build",
+    "server:webpack": "webpack --watch",
+    "server:run": "http-server ./example",
+    "dev": "npm-run-all --parallel server:*"
   },
   "keywords": [],
   "author": "",
@@ -29,6 +32,7 @@
   "dependencies": {
     "babel-loader": "^8.0.6",
     "css-loader": "^3.1.0",
+    "npm-run-all": "^4.1.5",
     "style-loader": "^0.23.1"
   }
 }
