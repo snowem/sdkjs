@@ -8,7 +8,7 @@
     "webpack": "webpack",
     "build": "webpack --env build",
     "server:webpack": "webpack --watch",
-    "server:run": "http-server ./example",
+    "server:run": "http-server ./example -S -C ./example/example.crt -K ./example/example.key",
     "dev": "npm-run-all --parallel server:*"
   },
   "keywords": [],
