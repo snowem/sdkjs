@@ -98,7 +98,7 @@
      this.remoteVideoElm = null;
      this.makecall = 0;
      this.config = {};
-     this.config.mediaConstraints = { audio: true, 
+     this.config.mediaConstraints = { audio: true,
                                 video: {
                                   mandatory:{
                                      maxWidth: 480,
@@ -116,8 +116,8 @@
      //TODO: chrome and firefox do differently here
      this.config.sdpConstraints = {'mandatory': {
          'OfferToReceiveAudio':true,
-         'OfferToReceiveVideo':true }}; 
- 
+         'OfferToReceiveVideo':true }};
+
      this.listeners = [];
      this.channelObj = null;
      this.pc = null;
@@ -210,7 +210,7 @@
            if (self.type === globals_.P2P_STREAM_TYPE) {
               console.log('send local candidate: ' + JSON.stringify(event.candidate));
               self.sendMessage({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_CANDIDATE,
-                      'id': self.id, 
+                      'id': self.id,
                       'remoteid': self.remoteId,
                       'candidate':{
                            type: 'candidate',
@@ -218,9 +218,9 @@
                            sdpMid: event.candidate.sdpMid,
                            candidate: event.candidate.candidate}});
            } else {
-              self.sendMessage({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_CANDIDATE, 
-                      'streamid': self.id, 
-                      'channelid': self.channelId, 
+              self.sendMessage({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_CANDIDATE,
+                      'streamid': self.id,
+                      'channelid': self.channelId,
                       'candidate':{
                            type: 'candidate',
                            sdpMLineIndex: event.candidate.sdpMLineIndex,
@@ -234,26 +234,26 @@
                        'id': self.id, 'remoteid': self.remoteId, 'candidate':{ done: true }});
            } else {
               self.sendMessage({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_CANDIDATE,
-                       'streamid': self.id, 
-                       'channelid': self.channelId, 
+                       'streamid': self.id,
+                       'channelid': self.channelId,
                        'candidate':{ done: true }});
            }
         }
-      }   
+      }
 
       function onaddstream(event) {
         console.log('Remote stream added, src:' + self.remoteVideoElm);
         self.remoteStream = event.stream;
         if (self.remoteVideoElm)
           self.remoteVideoElm.srcObject = event.stream;
-      }   
+      }
 
       function onremovestream(event) {
          console.log('Remote stream removed. Event: ', event);
       }
 
       function oniceconnectionstatechange(event) {
-         console.log("ICE connection status changed : streamid=" 
+         console.log("ICE connection status changed : streamid="
              + self.id + " " + event.target.iceConnectionState);
          if (event.target.iceConnectionState === "connected") {
             self.onIceConnected();
@@ -277,11 +277,11 @@
       if (this.state === 'connected') return; //already send request
 
       if (this.type === globals_.PUBLISHER_STREAM_TYPE) {
-         this.sendMessage({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_PUBLISH, 
+         this.sendMessage({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_PUBLISH,
                  'channelid': this.channelId,
                  'streamid': this.id});
       } else if (this.type === globals_.SUBSCRIBER_STREAM_TYPE) {
-         this.sendMessage({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_PLAY, 
+         this.sendMessage({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_PLAY,
                  'channelid': this.channelId,
                  'publishid': this.remoteId,
                  'streamid': this.id});
@@ -302,34 +302,34 @@
         self.pc.setLocalDescription(sessionDescription);
         if (self.type === globals_.P2P_STREAM_TYPE) {
           self.sendMessage({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_SDP,
-                   'id': self.id, 'remoteid': self.remoteId, 
+                   'id': self.id, 'remoteid': self.remoteId,
                    'sdp':sessionDescription});
         } else {
           console.warn("stream must be p2p-type");
         }
-      }   
+      }
       function onError(e) {
          console.log("failed to create sdp offer: " + e);
       }
       this.pc.createOffer(setLocalAndSendMessage, onError, this.config.sdpConstraints);
    }
-    
+
    Stream.prototype.doAnswer = function(msg) {
       var self = this;
       function setLocalAndSendMessage(sessionDescription) {
         self.pc.setLocalDescription(sessionDescription);
         if (self.type === globals_.P2P_STREAM_TYPE) {
            self.sendMessage({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_SDP,
-                   'id': self.id, 
-                   'remoteid': self.remoteId, 
+                   'id': self.id,
+                   'remoteid': self.remoteId,
                    'sdp':sessionDescription});
         } else {
            self.sendMessage({'msgtype':globals_.SNW_ICE,'api':globals_.SNW_ICE_SDP,
-                   'streamid': self.id, 
-                   'channelid': self.chanelId, 
+                   'streamid': self.id,
+                   'channelid': self.chanelId,
                    'sdp':sessionDescription});
         }
-      }   
+      }
       function onError(e) {
          console.log("failed to create sdp answer: " + e);
       }
@@ -342,7 +342,7 @@
      if (msg.type === 'offer') {
        this.doAnswer(msg);
      } else if (msg.type === 'answer') { //p2p mode: answer from our offer
-       if (this.type === globals_.P2P_STREAM_TYPE) { 
+       if (this.type === globals_.P2P_STREAM_TYPE) {
          this.pc.setRemoteDescription(new RTCSessionDescription(msg));
        } else {
          console.error("received answer, not handled");
@@ -354,7 +354,7 @@
 
    Stream.prototype.onRemoteCandidate = function(msg) {
      if (msg.type === 'candidate') {
-       var candidate = new RTCIceCandidate({sdpMid: msg.sdpMid, 
+       var candidate = new RTCIceCandidate({sdpMid: msg.sdpMid,
              sdpMLineIndex:msg.sdpMLineIndex, candidate:msg.candidate});
        console.log("remote candidate " + JSON.stringify(candidate));
        this.pc.addIceCandidate(candidate);
@@ -468,11 +468,11 @@
    Stream.prototype.broadcast = function(eventName,msg) {
      if (!this.listeners[eventName]) {
        console.log("no handler for event, name=" + JSON.stringify(eventName));
-       return; 
+       return;
      }
      for (var i = 0; i < this.listeners[eventName].length; i++) {
        this.listeners[eventName][i](msg);
-     } 
+     }
    }
 
    Stream.prototype.setChannelObj = function(obj) {
@@ -666,7 +666,7 @@
        }
        return;
      }
-     
+
      if (msg.msgtype == globals_.SNW_EVENT ) {
        this.handleEvent(msg);
        return;
@@ -780,12 +780,12 @@
        }
      }
 
-     if (!stream) { 
+     if (!stream) {
        console.warn("stream not found");
        return;
      }
      this.pendingStreams.splice(i, 1);
-     
+
      //TODO: verify if streamid exists?
      if (stream.type === globals_.PUBLISHER_STREAM_TYPE) {
        this.publishStreams.push({'id':msg.streamid, 'stream': stream});
@@ -902,11 +902,11 @@
    Channel.prototype.broadcast = function(eventName,msg) {
       if (!this.listeners[eventName]) {
          console.log("no handler for event, name=" + JSON.stringify(eventName));
-         return; 
+         return;
       }
       for (var i = 0; i < this.listeners[eventName].length; i++) {
          this.listeners[eventName][i](msg);
-      } 
+      }
    }
 
    Channel.prototype.stop = function() {
@@ -958,7 +958,7 @@
          console.warn("websocket server ip not set");
        }
        SnowSDK.rest_ip = config.wss_ip;
-    } 
+    }
 
     if (typeof config.rest_port !== 'undefined') {
        SnowSDK.rest_port = config.rest_port;
@@ -1135,7 +1135,7 @@
       }
     }
     return false;
-  }      
+  }
 
   function loadCallback() {
     console.log("initializing async snowsdk");
