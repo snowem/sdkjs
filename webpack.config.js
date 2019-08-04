@@ -54,4 +54,33 @@ const config = {
     extensions: ['.json', '.js']
   },
 };
-module.exports = config;
+
+var exampleConfig = Object.assign({}, config, {
+  entry: './src/index.js',
+  devtool: 'inline-source-map',
+  output: {
+    path: path.resolve(__dirname, './example'),
+    filename: outputFile,
+    library: 'snowem',
+    libraryTarget: 'umd',
+    umdNamedDefine: true,
+    globalObject: "typeof self !== 'undefined' ? self : this"
+  },
+});
+
+var distConfig = Object.assign({}, config, {
+  entry: './src/index.js',
+  devtool: 'inline-source-map',
+  output: {
+    path: path.resolve(__dirname, './dist'),
+    filename: outputFile,
+    library: 'snowem',
+    libraryTarget: 'umd',
+    umdNamedDefine: true,
+    globalObject: "typeof self !== 'undefined' ? self : this"
+  },
+});
+
+module.exports = [
+  exampleConfig, distConfig
+]
