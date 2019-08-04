@@ -8,10 +8,13 @@ function sendPostRequest (url, data, onSuccess, onError) {
   xhr.setRequestHeader("Content-type", "application/json");
   xhr.onreadystatechange = function () {
     if (xhr.readyState === 4 && xhr.status === 200) {
-      onSuccess(JSON.parse(xhr.responseText));
+      if (typeof onSuccess === 'function')
+        onSuccess(JSON.parse(xhr.responseText));
+    } else {
+      //TODO: why is it called on success?
+      //if (typeof onError === 'function')
+      //  onError(xhr.responseText);
     }
-    //TODO: when call onError!
-    //onError(xhr.responseText);
   };
   xhr.send(JSON.stringify(data));
 }
@@ -30,9 +33,8 @@ function sendGetRequest (url, data, onSuccess, onError) {
   xhr.send();
 }
 
-function createStreamID(server, port = 8868) {
+function createStreamID(server, port = 8868, onSuccess, onError) {
   var url = 'https://' + server + ':' + port
-
   var msg = {
     'msgtype': c.SNW_MSGTYPE_CHANNEL,
     'api': 1,
@@ -40,16 +42,7 @@ function createStreamID(server, port = 8868) {
     'type': 0,
     'key': 'key',
   }
-
-  sendPostRequest(url, msg,
-    function(msg) {
-      console.log('got msg: ' + msg.channelid)
-
-    },
-    function(err) {
-      console.log('got err: ' + err)
-
-    });
+  sendPostRequest(url, msg, onSuccess, onError);
 }
 
 export default createStreamID

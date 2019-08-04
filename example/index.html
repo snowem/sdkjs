@@ -140,8 +140,19 @@
 
 <!-- Custom Scripts -->
 <script>
-var stream = new snowem.Stream("localhost", 8443)
-snowem.createStreamID('localhost')
+snowem.createStreamID('localhost', 8868,
+  function(msg) {
+    console.log('got channelid: ' + msg.channelid)
+    var stream = new snowem.Stream(1109999, "localhost", 8443)
+    stream.listen("iceConnected", function(msg) {
+      console.log('ice connected')
+    });
+    stream.publish()
+
+  },
+  function(err) {
+    console.log('got err: ' + err)
+  });
 </script>
 </body>
 </html>
