@@ -19,3 +19,18 @@ export const SNW_ICE_CALL = 8;
 export const SNW_ICE_SDP = 128;
 export const SNW_ICE_CANDIDATE = 129;
 export const SNW_ICE_FIR = 130;
+
+// STREAM TYPE
+export const UNKNOWN_STREAM_TYPE = 0;
+export const PUBLISHER_STREAM_TYPE = 1;
+export const SUBSCRIBER_STREAM_TYPE = 2;
+export const P2P_STREAM_TYPE = 3;
+
+// MEDIA CODEC
+export const ACODEC_OPUS = "opus";
+export const ACODEC_PMCU = "pmcu";
+export const VCODEC_H264 = "h264";
+export const VCODEC_VP8 = "vp8";
+export const VCODEC_VP9 = "vp9";
+
+
