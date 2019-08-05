@@ -1,4 +1,6 @@
 import * as globals_ from './constants.js'
+import createStreamID from './http.js'
+import adapter from 'webrtc-adapter';
 
 function validURL(str) {
   var pattern = new RegExp('^(https?:\\/\\/)?'+ // protocol
@@ -11,8 +13,8 @@ function validURL(str) {
 }
 
 export default class Stream {
-  constructor(streamid, host, port = 8443) {
-    this.streamid = streamid
+  constructor(host, port = 8443) {
+    this.streamid = null
     this.host = host
     this.port = port
     this.url = 'wss://' + host + ':' + port + '/ws'
@@ -46,7 +48,7 @@ export default class Stream {
     var config = {
       mediaConstraints : {
         audio: true,
-        video: false,
+        video: true,
       },
       pcConfig : {
         'iceServers':[{'urls':'stun:stun3.l.google.com:19302'}],
@@ -56,7 +58,7 @@ export default class Stream {
       sdpConstraints : {
         'mandatory': {
           'OfferToReceiveAudio':true,
-          'OfferToReceiveVideo':false,
+          'OfferToReceiveVideo':true,
         }
       },
     }
@@ -66,7 +68,7 @@ export default class Stream {
     this.config = config
     this.state = "disconnected"
     this.localStream = null
-    this.localVideoElm = document.getElementById("localVideo");
+    this.localNode = null // dom element to host a stream
     this.remoteStream = null
     this.remoteVideoElm = document.getElementById("remoteVideo");
   }
@@ -181,9 +183,9 @@ export default class Stream {
    handleRequest(msg) {
 
      if (msg.msgtype == globals_.SNW_MSGTYPE_ICE ) {
-       var streamid = msg.streamid;
-       console.warn("stream not found, id=" + streamid);
-       /*var stream = this.getStreamById(streamid);
+       /*var streamid = msg.streamid;
+       console.warn("streamid=" + streamid);
+       var stream = this.getStreamById(streamid);
        if (stream) {
           stream.receiveMessage(msg);
        } else {
@@ -217,43 +219,20 @@ export default class Stream {
   }
 
   handleResponse(msg) {
-     if (msg.rc < 0) {
-       console.error("error msg: ", msg.errmsg);
-       return;
-     }
-     console.log("response: " + JSON.stringify(msg));
-     /*if (msg.msgtype == globals_.SNW_CHANNEL ) {
-       switch(msg.api) {
-         case globals_.SNW_CHANNEL_CONNECT:
-           this.handleConnectResp(msg);
-           break;
-         case globals_.SNW_CHANNEL_CREATE_STREAM:
-           this.handleCreateStreamResp(msg);
-           break;
-         default:
-           console.error("unknown channel msg: ", msg);
-           break;
-       }
-     }
-     if (msg.msgtype == globals_.SNW_ICE) {
-       var streamid = msg.streamid;
-       var stream = this.getStreamById(streamid);
-       if (stream) {
-          stream.receiveMessage(msg);
-       } else {
-         console.warn("stream not found, id=" + streamid);
-       }
-     }*/
-
-   }
+    if (msg.rc < 0) {
+      console.error("error msg: ", msg.rc);
+      return;
+    }
+    console.log("response: " + JSON.stringify(msg));
+  }
 
   handleMessage(evt) {
-      var msg = JSON.parse(evt.data);
-      if (msg.rc != null) {
-        this.handleResponse(msg);
-      } else {
-        this.handleRequest(msg);
-      }
+    var msg = JSON.parse(evt.data);
+    if (msg.rc != null) {
+      this.handleResponse(msg);
+    } else {
+      this.handleRequest(msg);
+    }
   }
 
   onIceConnected() {
@@ -279,90 +258,127 @@ export default class Stream {
 
 
   createPeerConnection(stream) {
-      var self = this;
+    var self = this;
 
-      this.pc = new RTCPeerConnection(this.config.pcConfig, this.config.sdpConstraints)
+    this.pc = new RTCPeerConnection(this.config.pcConfig, this.config.sdpConstraints)
 
-      function onicecandidate(event) {
-        if (event.candidate) {
-           var candidate = event.candidate.candidate;
-           //TODO: allow only private or specific IP?
-           //if (candidate.indexOf("192.168") === -1) return;
-           var candidate = event.candidate.candidate;
+    function onicecandidate(event) {
+      if (event.candidate) {
+         var candidate = event.candidate.candidate;
+         //TODO: allow only private or specific IP?
+         //if (candidate.indexOf("192.168") === -1) return;
+         var candidate = event.candidate.candidate;
 
-           /*if (self.type === globals_.P2P_STREAM_TYPE) {
-              console.log('send local candidate: ' + JSON.stringify(event.candidate));
-              self.sendMessage({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_CANDIDATE,
-                      'id': self.id,
-                      'remoteid': self.remoteId,
-                      'candidate':{
-                           type: 'candidate',
-                           sdpMLineIndex: event.candidate.sdpMLineIndex,
-                           sdpMid: event.candidate.sdpMid,
-                           candidate: event.candidate.candidate}});
-           } else {*/
-              self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_CANDIDATE,
-                      'streamid': self.streamid,
-                      'channelid': self.streamidd,
-                      'candidate':{
-                           type: 'candidate',
-                           sdpMLineIndex: event.candidate.sdpMLineIndex,
-                           sdpMid: event.candidate.sdpMid,
-                           candidate: event.candidate.candidate}});
-           //}
-        } else {
-           /*if (self.type === globals_.P2P_STREAM_TYPE) {
-              console.log('no more local candidate');
-              self.sendMessage({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_CANDIDATE,
-                       'id': self.id, 'remoteid': self.remoteId, 'candidate':{ done: true }});
-           } else {*/
-              self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_CANDIDATE,
-                       'streamid': self.streamid,
-                       'channelid': self.streamid,
-                       'candidate':{ done: true }});
-           //}
-        }
-      }
-
-      function onaddstream(event) {
-        console.log('Remote stream added, src:' + self.remoteVideoElm);
-        self.remoteStream = event.stream;
-        if (self.remoteVideoElm)
-          self.remoteVideoElm.srcObject = event.stream;
-      }
-
-      function onremovestream(event) {
-         console.log('Remote stream removed. Event: ', event);
-      }
-
-      function oniceconnectionstatechange(event) {
-         console.log("ICE connection status changed : streamid="
-             + self.id + " " + event.target.iceConnectionState);
-         if (event.target.iceConnectionState === "connected") {
-            self.onIceConnected();
-         }
-      }
-
-      this.pc.onicecandidate = onicecandidate;
-      this.pc.onaddstream = onaddstream;
-      this.pc.onremovestream = onremovestream;
-      this.pc.oniceconnectionstatechange = oniceconnectionstatechange;
-      if (stream) {
-        this.pc.addStream(stream);
-      } else if (this.localStream) {
-        this.pc.addStream(this.localStream);
+         /*if (self.type === globals_.P2P_STREAM_TYPE) {
+            console.log('send local candidate: ' + JSON.stringify(event.candidate));
+            self.sendMessage({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_CANDIDATE,
+                    'id': self.id,
+                    'remoteid': self.remoteId,
+                    'candidate':{
+                         type: 'candidate',
+                         sdpMLineIndex: event.candidate.sdpMLineIndex,
+                         sdpMid: event.candidate.sdpMid,
+                         candidate: event.candidate.candidate}});
+         } else {*/
+            self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_CANDIDATE,
+                    'streamid': self.streamid,
+                    'channelid': self.streamidd,
+                    'candidate':{
+                         type: 'candidate',
+                         sdpMLineIndex: event.candidate.sdpMLineIndex,
+                         sdpMid: event.candidate.sdpMid,
+                         candidate: event.candidate.candidate}});
+         //}
       } else {
-        console.warn("no local stream");
+         /*if (self.type === globals_.P2P_STREAM_TYPE) {
+            console.log('no more local candidate');
+            self.sendMessage({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_CANDIDATE,
+                     'id': self.id, 'remoteid': self.remoteId, 'candidate':{ done: true }});
+         } else {*/
+            self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_CANDIDATE,
+                     'streamid': self.streamid,
+                     'channelid': self.streamid,
+                     'candidate':{ done: true }});
+         //}
       }
-   }
+    }
+
+    function onaddstream(event) {
+      console.log('Remote stream added, src:' + self.remoteVideoElm);
+      self.remoteStream = event.stream;
+      if (self.remoteVideoElm)
+        self.remoteVideoElm.srcObject = event.stream;
+    }
+
+    function onremovestream(event) {
+       console.log('Remote stream removed. Event: ', event);
+    }
+
+    function oniceconnectionstatechange(event) {
+       console.log("ICE connection status changed : streamid="
+           + self.id + " " + event.target.iceConnectionState);
+       if (event.target.iceConnectionState === "connected") {
+          self.onIceConnected();
+       }
+    }
+
+    this.pc.onicecandidate = onicecandidate;
+    this.pc.onaddstream = onaddstream;
+    this.pc.onremovestream = onremovestream;
+    this.pc.oniceconnectionstatechange = oniceconnectionstatechange;
+    if (stream) {
+      this.pc.addStream(stream);
+    } else if (this.localStream) {
+      this.pc.addStream(this.localStream);
+    } else {
+      console.warn("no local stream");
+    }
+  }
 
 
-  publish() {
-     this.type = globals_.PUBLISHER_STREAM_TYPE
-     this.createPeerConnection(this.localStream);
-     this.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_CONNECT,
-              'channelid': this.streamid, 'stream_type': this.type, 'video_codec': this.vcodec,
-              'name': 'test', 'streamid': this.streamid});
+  parseConfig(config) {
+    if (config.hasOwnProperty('localNode')) {
+      this.localNode = config.localNode
+    }
+
+  }
+
+  publish(config) {
+    var self = this
+    //handle config
+    console.log("publish config: " + JSON.stringify(config))
+    this.parseConfig(config)
+
+    if (config.type === 'camera') {
+       navigator.getUserMedia(this.config.mediaConstraints, function(stream) {
+         if (!stream) return
+         self.localStream = stream
+         console.log('got camera stream')
+         self.localNode.srcObject = stream
+         //self.broadcast("onMediaReady", stream);
+
+         //create stream id and publish
+         createStreamID(self.host, 8868)
+         .then(function(data) {
+           var streamid = JSON.parse(data.responseText).channelid;
+           console.log('result: ' + streamid)
+           self.streamid = streamid
+           self.type = globals_.PUBLISHER_STREAM_TYPE
+           console.log('create peer connection: ' + self.localStream)
+           self.createPeerConnection(self.localStream);
+           self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_CONNECT,
+                      'channelid': self.streamid, 'stream_type': self.type, 'video_codec': self.vcodec,
+                      'name': 'test', 'streamid': self.streamid});
+         })
+         .catch(function(error) {
+           console.error('internal error: ' + error)
+         })
+       }, function(info) {
+         console.error("failed to get media")
+       });
+
+    }
+
   }
 
 }

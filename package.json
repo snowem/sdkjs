@@ -27,7 +27,8 @@
     "http-server": "^0.11.1",
     "webpack": "^4.39.1",
     "webpack-cli": "^3.3.6",
-    "webpack-dev-server": "^3.7.2"
+    "webpack-dev-server": "^3.7.2",
+    "webrtc-adapter": "^7.2.9"
   },
   "dependencies": {
     "babel-loader": "^8.0.6",

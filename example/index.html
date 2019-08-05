@@ -140,19 +140,43 @@
 
 <!-- Custom Scripts -->
 <script>
-snowem.createStreamID('localhost', 8868,
-  function(msg) {
-    console.log('got channelid: ' + msg.channelid)
-    var stream = new snowem.Stream(1109999, "localhost", 8443)
-    stream.listen("iceConnected", function(msg) {
-      console.log('ice connected')
-    });
-    stream.publish()
+$("#joinRoomBtn").click(function() {
+  var streamid = $("#joinRoomChannelId").val()
+  console.log('play stream: ' + streamid)
 
+});
+
+var stream = new snowem.Stream("192.168.1.110", 8443)
+stream.listen("onIceConnected", function(msg) {
+  console.log('ice connected')
+});
+var config = {
+  'type': 'camera',
+  'localNode': document.getElementById('localVideo'),
+  'media': {
+    'audio': true,
+    'video': true,
+    'data': true,
   },
-  function(err) {
-    console.log('got err: ' + err)
-  });
+  'mediaConstraints': {
+    'audio': true,
+    'video': true,
+  },
+  'pcConfig': {
+    'iceServers':[{'urls':'stun:stun3.l.google.com:19302'}],
+    'iceTransports': 'all'
+  },
+  //TODO: chrome and firefox do differently here
+  'sdpConstraints': {
+    'mandatory': {
+      'OfferToReceiveAudio':true,
+      'OfferToReceiveVideo':true,
+    }
+  },
+}
+stream.publish(config)
+
+
 </script>
 </body>
 </html>
