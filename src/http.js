@@ -65,12 +65,22 @@ function makeRequest(url, method, data) {
   });
 }
 
+function generateRandomString(length) {
+   var result           = '';
+   var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+   var charactersLength = characters.length;
+   for ( var i = 0; i < length; i++ ) {
+      result += characters.charAt(Math.floor(Math.random() * charactersLength));
+   }
+   return result;
+}
+
 function createStreamIDOld(server, port = 8868, onSuccess, onError) {
   var url = 'https://' + server + ':' + port
   var msg = {
     'msgtype': c.SNW_MSGTYPE_CHANNEL,
     'api': 1,
-    'name': 'test',
+    'name': generateRandomString(8),
     'type': 0,
     'key': 'key',
   }
@@ -82,10 +92,11 @@ function createStreamID(server, port = 8868, room = 'test') {
   var msg = {
     'msgtype': c.SNW_MSGTYPE_CHANNEL,
     'api': 1,
-    'name': room,
+    'name': generateRandomString(8),
     'type': 0,
     'key': 'key',
   }
+  console.log('room name:' + msg.name)
   return makeRequest(url, 'POST', msg)
 }
 

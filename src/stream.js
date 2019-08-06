@@ -14,12 +14,13 @@ function validURL(str) {
 
 export default class Stream {
   constructor(host, port = 8443) {
-    this.streamid = null
     this.host = host
     this.port = port
     this.url = 'wss://' + host + ':' + port + '/ws'
     this.isConnected = false
     this.listeners = [];
+    this.streamid = null
+    this.remoteStreamid = null
 
     // websocket init
     console.log("wss: " + this.url)
@@ -68,9 +69,13 @@ export default class Stream {
     this.config = config
     this.state = "disconnected"
     this.localStream = null
-    this.localNode = null // dom element to host a stream
+    this.localNode = null // dom element to host a local stream
     this.remoteStream = null
-    this.remoteVideoElm = document.getElementById("remoteVideo");
+    this.remoteNode = null // dom element to host a remote stream
+  }
+
+  getStreamID() {
+    return this.streamid
   }
 
   listen(eventName, handler) {
@@ -139,6 +144,7 @@ export default class Stream {
                  'remoteid': self.remoteId,
                  'sdp':sessionDescription});
       } else {*/
+         console.log('streamid: ' + self.streamid)
          self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_SDP,
                  'streamid': self.streamid,
                  'channelid': self.streamid,
@@ -245,7 +251,7 @@ export default class Stream {
     } else if (this.type === globals_.SUBSCRIBER_STREAM_TYPE) {
        this.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_PLAY,
                'channelid': this.streamid,
-               'publishid': this.streamid,
+               'publishid': this.remoteStreamid,
                'streamid': this.streamid});
     }/* else if (this.type === globals_.P2P_STREAM_TYPE) {
        console.log("p2p mode (nothing to do), channelId=" + this.channelId);
@@ -282,7 +288,7 @@ export default class Stream {
          } else {*/
             self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_CANDIDATE,
                     'streamid': self.streamid,
-                    'channelid': self.streamidd,
+                    'channelid': self.streamid,
                     'candidate':{
                          type: 'candidate',
                          sdpMLineIndex: event.candidate.sdpMLineIndex,
@@ -335,10 +341,15 @@ export default class Stream {
     }
   }
 
-
   parseConfig(config) {
     if (config.hasOwnProperty('localNode')) {
       this.localNode = config.localNode
+    }
+    if (config.hasOwnProperty('remoteNode')) {
+      this.remoteNode = config.remoteNode
+    }
+    if (config.hasOwnProperty('streamid')) {
+      this.remoteStreamid = config.streamid
     }
 
   }
@@ -348,6 +359,7 @@ export default class Stream {
     //handle config
     console.log("publish config: " + JSON.stringify(config))
     this.parseConfig(config)
+    this.type = globals_.PUBLISHER_STREAM_TYPE
 
     if (config.type === 'camera') {
        navigator.getUserMedia(this.config.mediaConstraints, function(stream) {
@@ -378,8 +390,32 @@ export default class Stream {
        });
 
     }
-
   }
 
+  play(config) {
+    var self = this
+    //handle config
+    console.log("play config: " + JSON.stringify(config))
+    this.parseConfig(config)
+    this.type = globals_.SUBSCRIBER_STREAM_TYPE
+
+    //create stream id and publish
+    createStreamID(self.host, 8868, 'player')
+    .then(function(data) {
+      var streamid = JSON.parse(data.responseText).channelid;
+      console.log('result: ' + streamid)
+      self.streamid = streamid
+      console.log('stream: ' + self.streamid)
+      self.type = globals_.PUBLISHER_STREAM_TYPE
+      console.log('create peer connection: ' + self.localStream)
+      self.createPeerConnection(self.localStream);
+      self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_CONNECT,
+                  'channelid': self.streamid, 'stream_type': self.type, 'video_codec': self.vcodec,
+                  'streamid': self.streamid});
+    })
+    .catch(function(error) {
+      console.error('internal error: ' + error)
+    })
+  }
 }
 
