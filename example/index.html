@@ -107,7 +107,7 @@
               <div class="adeInLeft">
                 <div id="playDiv" class="snowbox">
                  <div class="videobox">
-                   <video id="playRemoteVideo" class="snowvideo" autoplay="none" preload="none"> </video>
+                   <video id="remoteVideo" class="snowvideo" autoplay="none" preload="none"> </video>
                  </div>
                 </div>
                 <div class="text-center"> <h5 class="title"><a href="">Remote Camera</a></h5></div>
@@ -142,7 +142,7 @@
 <!-- Custom Scripts -->
 <script>
 $("#joinRoomBtn").click(function() {
-  var streamid = $("#joinRoomChannelId").val()
+  var streamid = parseInt($("#joinRoomChannelId").val())
   console.log('play stream: ' + streamid)
   var config = {
     'streamid': streamid,

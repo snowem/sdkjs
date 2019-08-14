@@ -90,7 +90,7 @@ function createStreamIDOld(server, port = 8868, onSuccess, onError) {
 function createStreamID(server, port = 8868, room = 'test') {
   var url = 'https://' + server + ':' + port
   var msg = {
-    'msgtype': c.SNW_MSGTYPE_CHANNEL,
+    'msgtype': c.SNW_MSGTYPE_ICE,
     'api': 1,
     'name': generateRandomString(8),
     'type': 0,
