@@ -147,7 +147,6 @@ export default class Stream {
          console.log('streamid: ' + self.streamid)
          self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_SDP,
                  'streamid': self.streamid,
-                 'channelid': self.streamid,
                  'sdp':sessionDescription});
       //}
     }
@@ -245,17 +244,14 @@ export default class Stream {
     if (this.state === 'connected') return; //already send request
 
     if (this.type === globals_.PUBLISHER_STREAM_TYPE) {
-       this.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_PUBLISH,
-               'channelid': this.streamid,
+      console.log("publishing a stream: " + this.streamid)
+      this.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_PUBLISH,
                'streamid': this.streamid});
     } else if (this.type === globals_.SUBSCRIBER_STREAM_TYPE) {
        this.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_PLAY,
-               'channelid': this.streamid,
                'publishid': this.remoteStreamid,
                'streamid': this.streamid});
-    }/* else if (this.type === globals_.P2P_STREAM_TYPE) {
-       console.log("p2p mode (nothing to do), channelId=" + this.channelId);
-    }*/ else {
+    } else {
        // error
     }
     this.state = 'connected';
@@ -288,7 +284,6 @@ export default class Stream {
          } else {*/
             self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_CANDIDATE,
                     'streamid': self.streamid,
-                    'channelid': self.streamid,
                     'candidate':{
                          type: 'candidate',
                          sdpMLineIndex: event.candidate.sdpMLineIndex,
@@ -303,17 +298,16 @@ export default class Stream {
          } else {*/
             self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_CANDIDATE,
                      'streamid': self.streamid,
-                     'channelid': self.streamid,
                      'candidate':{ done: true }});
          //}
       }
     }
 
     function onaddstream(event) {
-      console.log('Remote stream added, src:' + self.remoteVideoElm);
+      console.log('Remote stream added, src:' + self.remoteNode);
       self.remoteStream = event.stream;
-      if (self.remoteVideoElm)
-        self.remoteVideoElm.srcObject = event.stream;
+      if (self.remoteNode)
+        self.remoteNode.srcObject = event.stream;
     }
 
     function onremovestream(event) {
@@ -322,7 +316,7 @@ export default class Stream {
 
     function oniceconnectionstatechange(event) {
        console.log("ICE connection status changed : streamid="
-           + self.id + " " + event.target.iceConnectionState);
+           + self.streamid + " " + event.target.iceConnectionState);
        if (event.target.iceConnectionState === "connected") {
           self.onIceConnected();
        }
@@ -372,14 +366,14 @@ export default class Stream {
          //create stream id and publish
          createStreamID(self.host, 8868)
          .then(function(data) {
-           var streamid = JSON.parse(data.responseText).channelid;
+           var streamid = JSON.parse(data.responseText).streamid;
            console.log('result: ' + streamid)
            self.streamid = streamid
            self.type = globals_.PUBLISHER_STREAM_TYPE
            console.log('create peer connection: ' + self.localStream)
            self.createPeerConnection(self.localStream);
            self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_CONNECT,
-                      'channelid': self.streamid, 'stream_type': self.type, 'video_codec': self.vcodec,
+                      'stream_type': self.type, 'video_codec': self.vcodec,
                       'name': 'test', 'streamid': self.streamid});
          })
          .catch(function(error) {
@@ -402,15 +396,15 @@ export default class Stream {
     //create stream id and publish
     createStreamID(self.host, 8868, 'player')
     .then(function(data) {
-      var streamid = JSON.parse(data.responseText).channelid;
+      var streamid = JSON.parse(data.responseText).streamid;
       console.log('result: ' + streamid)
       self.streamid = streamid
       console.log('stream: ' + self.streamid)
-      self.type = globals_.PUBLISHER_STREAM_TYPE
+      self.type = globals_.SUBSCRIBER_STREAM_TYPE
       console.log('create peer connection: ' + self.localStream)
       self.createPeerConnection(self.localStream);
       self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_CONNECT,
-                  'channelid': self.streamid, 'stream_type': self.type, 'video_codec': self.vcodec,
+                  'stream_type': self.type, 'video_codec': self.vcodec,
                   'streamid': self.streamid});
     })
     .catch(function(error) {
