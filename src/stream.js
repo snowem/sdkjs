@@ -339,18 +339,19 @@ export default class Stream {
     if (config.hasOwnProperty('localNode')) {
       this.localNode = config.localNode
     }
+    if (config.hasOwnProperty('localStream')) {
+      this.localStream = config.localStream
+    }
     if (config.hasOwnProperty('remoteNode')) {
       this.remoteNode = config.remoteNode
     }
     if (config.hasOwnProperty('streamid')) {
       this.remoteStreamid = config.streamid
     }
-
   }
 
   publish(config) {
     var self = this
-    //handle config
     console.log("publish config: " + JSON.stringify(config))
     this.parseConfig(config)
     this.type = globals_.PUBLISHER_STREAM_TYPE
@@ -382,7 +383,26 @@ export default class Stream {
        }, function(info) {
          console.error("failed to get media")
        });
+    } else if (config.type === 'video') {
+       console.log('got video stream: ' + self.localStream)
+       self.localNode.srcObject = stream
 
+       //create stream id and publish
+       createStreamID(self.host, 8868)
+       .then(function(data) {
+         var streamid = JSON.parse(data.responseText).streamid;
+         console.log('result: ' + streamid)
+         self.streamid = streamid
+         self.type = globals_.PUBLISHER_STREAM_TYPE
+         console.log('create peer connection: ' + self.localStream)
+         self.createPeerConnection(self.localStream);
+         self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_CONNECT,
+                    'stream_type': self.type, 'video_codec': self.vcodec,
+                    'name': 'test', 'streamid': self.streamid});
+       })
+       .catch(function(error) {
+         console.error('internal error: ' + error)
+       })
     }
   }
 
