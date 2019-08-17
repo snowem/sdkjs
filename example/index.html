@@ -19,8 +19,8 @@
        background-image: url("background.png");
     }
     .snowbox {
-       width:360px !important;
-       max-width:360px;
+       width:280px !important;
+       max-width:280px;
        display: inline-block;
        overflow: hidden;
     }
@@ -48,6 +48,15 @@
       padding: 3px;
       font-size: 8pt;
     }
+    .overlay-right {
+      position:absolute;
+      top:0;
+      right:0;
+      z-index:1;
+      padding: 3px;
+      font-size: 8pt;
+    }
+
     .float-btn-div {
        position: absolute;
        bottom: 80px;
@@ -60,10 +69,6 @@
     }
     .bottom { border-bottom: 1px solid #5BC0DE; }
   </style>
-
-  <!--<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>-->
 
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
   <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
@@ -115,11 +120,12 @@
         <div id="streamBoxId" class="row">
 
           <div id="templateVideoBoxId">
-            <div id="videoBoxId" class="col-md-4">
+            <div id="videoBoxId" class="col-lg-4 col-md-6 col-xs-12">
               <div class="adeInLeft">
                 <div id="playDiv" class="snowbox">
                  <div class="videobox">
                    <div class="overlay"><span id="remoteStreamId">Remote stream</span></div>
+                   <div class="overlay-right"><button type="button" id="closeRemoteStreamId">X</button></div>
                    <video id="remoteVideo" class="snowvideo" autoplay="none" preload="none"> </video>
                  </div>
                 </div>
@@ -127,7 +133,7 @@
             </div>
           </div>
 
-          <div id="fileVideoId" class="col-md-4">
+          <div id="fileVideoId" class="col-lg-4 col-md-6 col-xs-12">
             <div class="adeInLeft">
               <div id="fileVideoDiv" class="snowbox">
                <div class="videobox">
@@ -140,12 +146,13 @@
             </div>
           </div>
 
-          <div class="col-md-4">
+          <div class="col-lg-4 col-md-6 col-xs-12">
             <div class="adeInLeft">
               <div id="publishVideoDiv" text-center>
                 <div id="publishDiv" class="snowbox">
                   <div class="videobox">
                     <div class="overlay"><span id='localStreamId'>Local camera</span></div>
+                    <div class="overlay-right"><button type="button" id="closeLocalStreamId">X</button></div>
                     <video id='localVideo' class="snowvideo" muted autoplay="none" preload="none"> </video> 
                   </div>
                 </div>
