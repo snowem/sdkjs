@@ -74,6 +74,7 @@ export default class Stream {
         }
       },
     }
+    this.pc = null
     this.type = globals_.UNKNOWN_STREAM_TYPE
     this.acodec = globals_.ACODEC_OPUS
     this.vcodec = globals_.VCODEC_VP8
@@ -458,6 +459,17 @@ export default class Stream {
     .catch(function(error) {
       console.error('internal error: ' + error)
     })
+  }
+
+  close() {
+    if (this.pc) {
+      this.pc.close()
+      this.pc = null
+    }
+    if (this.socket) {
+      this.socket.close()
+      this.socket = null
+    }
   }
 }
 

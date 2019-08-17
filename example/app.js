@@ -64,7 +64,8 @@ function createVideoBox(name, streamid) {
     .replace('videoBoxId', 'videoBoxId' + name)
     .replace('playDiv', 'playDiv' + name)
     .replace('remoteVideo', 'remoteVideo' + name)
-    .replace('remoteStreamId', 'remoteStreamId' + name);
+    .replace('remoteStreamId', 'remoteStreamId' + name)
+    .replace('closeRemoteStreamId', 'closeRemoteStreamId' + name);
   $('#streamBoxId').append(a);
 }
 
@@ -104,8 +105,16 @@ $('#playStreamBtn').click(function() {
       }
     },
   }
-
   playStream.play(config)
+
+  var btn = '#closeRemoteStreamId' + streamName
+  $(btn).click(function()  {
+    console.log('close stream: ' + streamName)
+    var elmId = '#videoBoxId' + streamName
+    $(elmId).remove()
+    playStream.close()
+  });
+
 });
 
 $('#publishCameraBtn').click(function() {
@@ -162,8 +171,14 @@ $('#publishCameraBtn').click(function() {
     $('#localStreamId').show();
     $('#playStreamId').val(publishStream.getStreamID())
   });
-
   publishStream.publish(config)
+
+  $('#closeLocalStreamId').click(function()  {
+    console.log('close published stream')
+    publishStream.close()
+    $('#publishVideoDiv').hide();
+  });
+
 })
 
 
