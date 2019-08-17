@@ -1,4 +1,4 @@
-var host = '192.168.1.110'
+var host = 'localhost'
 var fileVideo = document.getElementById('fileVideo');
 var hasWebcam = false
 var stream = null
