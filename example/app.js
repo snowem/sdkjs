@@ -37,15 +37,13 @@ function maybeCreateStream() {
   }
   if (fileVideo.captureStream) {
     stream = fileVideo.captureStream();
-    console.log('Captured stream from fileVideo with captureStream',
-      stream);
   } else if (fileVideo.mozCaptureStream) {
     stream = fileVideo.mozCaptureStream();
-    console.log('Captured stream from fileVideo with mozCaptureStream()',
-      stream);
   } else {
-    console.log('captureStream() not supported');
+    console.error('captureStream() not supported');
+    return
   }
+  //console.log('Captured stream from fileVideo with captureStream', stream);
 }
 
 DetectRTC.load(function() {
@@ -72,15 +70,14 @@ function createVideoBox(name, streamid) {
 $('#playStreamBtn').click(function() {
   var playStream = new snowem.Stream(host, 8443)
   playStream.listen('onIceConnected', function(msg) {
-    console.log('ice connected')
+    //ice connection established
   });
   playStream.listen('onIceDisonnected', function(msg) {
-    console.log('ice disconnected')
+    //ice connection closed
   });
 
   var streamId = parseInt($('#playStreamId').val())
   var streamName = playStream.getStreamName()
-  console.log('play stream: ' + streamName)
   createVideoBox(streamName, streamId)
   var config = {
     'streamid': streamId,
@@ -127,10 +124,10 @@ $('#publishCameraBtn').click(function() {
 
     if (playPromise !== undefined) {
       playPromise.then(_ => {
-        console.log('start playing video file')
+        //console.log('start playing video file')
       })
       .catch(error => {
-        console.log('video playing error')
+        console.error('failed to play video')
       });
     }
 
@@ -165,7 +162,6 @@ $('#publishCameraBtn').click(function() {
   }
   var publishStream = new snowem.Stream(host, 8443)
   publishStream.listen('onIceConnected', function(msg) {
-    console.log('ice connected')
     $('#publishVideoDiv').show();
     $('#localStreamId').text('Local Stream - ' + publishStream.getStreamID())
     $('#localStreamId').show();
