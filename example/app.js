@@ -58,14 +58,15 @@ DetectRTC.load(function() {
   }
 })
 
-function createVideoBox(name) {
-     var a = $('#templateVideoBoxId').html()
-         .replace('videoBoxId', 'videoBoxId' + name)
-         .replace('playDiv', 'playDiv' + name)
-         .replace('remoteVideo', 'remoteVideo' + name);
-     $('#streamBoxId').append(a);
+function createVideoBox(name, streamid) {
+  $('#remoteStreamId').text('Remote stream - ' + streamid)
+  var a = $('#templateVideoBoxId').html()
+    .replace('videoBoxId', 'videoBoxId' + name)
+    .replace('playDiv', 'playDiv' + name)
+    .replace('remoteVideo', 'remoteVideo' + name)
+    .replace('remoteStreamId', 'remoteStreamId' + name);
+  $('#streamBoxId').append(a);
 }
-
 
 $('#playStreamBtn').click(function() {
   var playStream = new snowem.Stream(host, 8443)
@@ -76,13 +77,13 @@ $('#playStreamBtn').click(function() {
     console.log('ice disconnected')
   });
 
-  var streamid = parseInt($('#playStreamId').val())
-  var streamname = playStream.getStreamName()
-  console.log('play stream: ' + streamname)
-  createVideoBox(streamname)
+  var streamId = parseInt($('#playStreamId').val())
+  var streamName = playStream.getStreamName()
+  console.log('play stream: ' + streamName)
+  createVideoBox(streamName, streamId)
   var config = {
-    'streamid': streamid,
-    'remoteNode':  document.getElementById('remoteVideo' + streamname),
+    'streamid': streamId,
+    'remoteNode':  document.getElementById('remoteVideo' + streamName),
     'media': {
       'audio': true,
       'video': true,
@@ -146,7 +147,6 @@ $('#publishCameraBtn').click(function() {
       'iceServers':[{'urls':'stun:stun3.l.google.com:19302'}],
       'iceTransports': 'all'
     },
-    //TODO: chrome and firefox do differently here
     'sdpConstraints': {
       'mandatory': {
         'OfferToReceiveAudio':false,
