@@ -35,22 +35,31 @@ DetectRTC.load(function() {
   }
 })
 
-function createVideoBox(streamid) {
+function createVideoBox(name) {
      var a = $('#templateVideoBoxId').html()
-         .replace('videoBoxId', 'videoBoxId' + streamid)
-         .replace('playDiv', 'playDiv' + streamid)
-         .replace('remoteVideo', 'remoteVideo' + streamid);
+         .replace('videoBoxId', 'videoBoxId' + name)
+         .replace('playDiv', 'playDiv' + name)
+         .replace('remoteVideo', 'remoteVideo' + name);
      $('#streamBoxId').append(a);
 }
 
 
 $('#playStreamBtn').click(function() {
+  var playStream = new snowem.Stream(host, 8443)
+  playStream.listen('onIceConnected', function(msg) {
+    console.log('ice connected')
+  });
+  playStream.listen('onIceDisonnected', function(msg) {
+    console.log('ice disconnected')
+  });
+
   var streamid = parseInt($('#playStreamId').val())
-  console.log('play stream: ' + streamid)
-  createVideoBox(streamid)
+  var streamname = playStream.getStreamName()
+  console.log('play stream: ' + streamname)
+  createVideoBox(streamname)
   var config = {
     'streamid': streamid,
-    'remoteNode':  document.getElementById('remoteVideo' + streamid),
+    'remoteNode':  document.getElementById('remoteVideo' + streamname),
     'media': {
       'audio': true,
       'video': true,
@@ -72,10 +81,6 @@ $('#playStreamBtn').click(function() {
     },
   }
 
-  var playStream = new snowem.Stream(host, 8443)
-  playStream.listen('onIceConnected', function(msg) {
-
-  });
   playStream.play(config)
 });
 
@@ -109,7 +114,10 @@ $('#publishCameraBtn').click(function() {
     },
     'mediaConstraints': {
       'audio': true,
-      'video': true,
+      'video': {
+        width: {min: 480, max: 480},
+        height: {min: 270, max: 270}
+      }
     },
     'pcConfig': {
       'iceServers':[{'urls':'stun:stun3.l.google.com:19302'}],

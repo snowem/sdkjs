@@ -15,6 +15,9 @@
    <script src = "https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
    <![endif]-->
   <style media="screen" type="text/css">
+    body {
+       background-image: url("background.png");
+    }
     .snowbox {
        width:360px !important;
        max-width:360px;
@@ -58,9 +61,9 @@
 
     <section id="snowem" class="wow fadeInUp" style="bottom-top: 0px; bottom-top: 0px;">
       <div class="container">
-       <h2 class="snow-highlight text-center">Welcome to Snowem!</h2>
-       <p>This is a demo page, which uses snowem as webrtc media server.</p>
-       <p><span style="font-weight:bold">Source code</span>of this page is availabe at <a href="https://github.com/snowem/sdkjs">here</a></p>
+       <h2 class="snow-highlight text-center">Welcome to Snowem Demo Page!</h2>
+       <p>A simple demo which allows you publish your local camera (or video file) and play remote streams.</p>
+       <p><span style="font-weight:bold">Source code</span> of this page is availabe at <a href="https://github.com/snowem/sdkjs/example">here</a>.</p>
        <hr/>
       </div>
     </section>
@@ -73,13 +76,13 @@
           <div class="col-md-6">
             <h4>Demo Web Application</h4>
             <div id="joinedRoomSectionId">
-             <span>Publish your local camera. If no camera available, a sample video will be played.</span>
+              <p><span>Publish your local camera. If no camera available, a sample video will be played.</span></p>
             </div>
             <button id="publishCameraBtn" type="button" class="btn-get-started">Publish Stream</button>
           </div>
           <div class="col-md-6">
             <h4>&nbsp;</h4>
-            <span>A simple demo which allows you publish your local camera (or video file) and play remote streams.</span>
+            <p><span>Enter id number of a published stream to play it.</span></p>
             <div id="playStreamSectionId" class="text-left">
              <input type="text" id="playStreamId" placeholder="Enter a stream id" style="width:70%;">
              <button id="playStreamBtn" type="button" class="btn-get-started">Play Stream</button>
@@ -105,7 +108,7 @@
                    <video id="remoteVideo" class="snowvideo" autoplay="none" preload="none"> </video>
                  </div>
                 </div>
-                <div class="text-center"> <h5 class="title"><a href="">Remote Camera</a></h5></div>
+                <div class="text-center"> <h5 class="title"><a href="">Remote Stream</a></h5></div>
               </div>
             </div>
           </div>

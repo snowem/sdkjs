@@ -12,6 +12,16 @@ function validURL(str) {
   return !!pattern.test(str);
 }
 
+function generateRandomString(length) {
+   var result           = '';
+   var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+   var charactersLength = characters.length;
+   for ( var i = 0; i < length; i++ ) {
+      result += characters.charAt(Math.floor(Math.random() * charactersLength));
+   }
+   return result;
+}
+
 export default class Stream {
   constructor(host, port = 8443) {
     this.host = host
@@ -21,6 +31,7 @@ export default class Stream {
     this.listeners = [];
     this.streamid = null
     this.remoteStreamid = null
+    this.name = generateRandomString(8)
 
     // websocket init
     console.log("wss: " + this.url)
@@ -76,6 +87,10 @@ export default class Stream {
 
   getStreamID() {
     return this.streamid
+  }
+
+  getStreamName() {
+    return this.name
   }
 
   listen(eventName, handler) {
@@ -258,6 +273,12 @@ export default class Stream {
     this.broadcast('onIceConnected',null);
   }
 
+  onIceDisconnected() {
+    if (this.state === 'disconnected') return;
+    this.state = 'disconnected';
+    this.broadcast('onIceDisconnected',null);
+  }
+
 
   createPeerConnection(stream) {
     var self = this;
@@ -320,6 +341,10 @@ export default class Stream {
        if (event.target.iceConnectionState === "connected") {
           self.onIceConnected();
        }
+       if (event.target.iceConnectionState === "disconnected"
+           || event.target.iceConnectionState === "closed") {
+          self.onIceDisconnected();
+       }
     }
 
     this.pc.onicecandidate = onicecandidate;
@@ -347,6 +372,9 @@ export default class Stream {
     }
     if (config.hasOwnProperty('streamid')) {
       this.remoteStreamid = config.streamid
+    }
+    if (config.hasOwnProperty('mediaConstraints')) {
+      this.config.mediaConstraints = config.mediaConstraints
     }
   }
 
