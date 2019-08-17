@@ -40,6 +40,14 @@
        bottom:0px;
        left:0px;
     }
+    .overlay {
+      position:absolute;
+      top:0;
+      left:0;
+      z-index:1;
+      padding: 3px;
+      font-size: 8pt;
+    }
     .float-btn-div {
        position: absolute;
        bottom: 80px;
@@ -111,10 +119,10 @@
               <div class="adeInLeft">
                 <div id="playDiv" class="snowbox">
                  <div class="videobox">
+                   <div class="overlay"><span id="remoteStreamId">Remote stream</span></div>
                    <video id="remoteVideo" class="snowvideo" autoplay="none" preload="none"> </video>
                  </div>
                 </div>
-                <div class="text-center"> <h5 class="title"><a href="">Remote Stream</a></h5></div>
               </div>
             </div>
           </div>
@@ -128,7 +136,7 @@
                  </video>
                </div>
               </div>
-              <div class="text-center"> <h5 class="title"><a href="">Local Stream</a></h5></div>
+              <div class="text-center"> <span class="title">Local stream</span></div>
             </div>
           </div>
 
@@ -137,11 +145,11 @@
               <div id="publishVideoDiv" text-center>
                 <div id="publishDiv" class="snowbox">
                   <div class="videobox">
+                    <div class="overlay"><span id='localStreamId'>Local camera</span></div>
                     <video id='localVideo' class="snowvideo" muted autoplay="none" preload="none"> </video> 
                   </div>
                 </div>
               </div>
-              <div class="text-center"> <h5><span id='localStreamId'>Local Camera</span></h5> </div>
             </div>
           </div>
 
