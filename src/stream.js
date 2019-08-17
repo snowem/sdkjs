@@ -1,6 +1,13 @@
 import * as globals_ from './constants.js'
 import createStreamID from './http.js'
-import adapter from 'webrtc-adapter';
+import adapter from 'webrtc-adapter'
+import log from 'debug'
+
+let logger = log('stream')
+log.disable('stream')
+if (process.env.NODE_ENV === 'development') {
+  log.enable('stream')
+}
 
 function validURL(str) {
   var pattern = new RegExp('^(https?:\\/\\/)?'+ // protocol
@@ -34,14 +41,14 @@ export default class Stream {
     this.name = generateRandomString(8)
 
     // websocket init
-    console.log("wss: " + this.url)
+    logger("wss: " + this.url)
     this.msgs = []
     this.socket = new WebSocket(this.url)
     this.socket.onopen = () => {
       this.triggerEvent('onConnected')
       this.isConnected = true
       for (var i = 0; i < this.msgs.length; i++) {
-        console.log(this.msgs[i]);
+        logger(this.msgs[i]);
         var message = this.msgs[i];
         if (typeof message === 'object') {
            message = JSON.stringify(message);
@@ -51,7 +58,7 @@ export default class Stream {
       this.msgs = []
     }
     this.socket.onmessage = (event) => {
-      console.log('receive message: ' + event.data)
+      logger('receive message: ' + event.data)
       this.handleMessage(event)
     }
 
@@ -115,7 +122,7 @@ export default class Stream {
 
   broadcast(eventName, msg) {
     if (!this.listeners[eventName]) {
-      console.log("no handler for event, name=" + JSON.stringify(eventName));
+      logger("no handler for event, name=" + JSON.stringify(eventName));
       return;
     }
     for (var i = 0; i < this.listeners[eventName].length; i++) {
@@ -126,7 +133,7 @@ export default class Stream {
 
   triggerEvent(eventName, data) {
     if (!this.listeners[eventName]) {
-      console.log("no handler for event, name=" + JSON.stringify(eventName));
+      logger("no handler for event, name=" + JSON.stringify(eventName));
       return;
     }
     for (var i = 0; i < this.listeners[eventName].length; i++) {
@@ -135,7 +142,7 @@ export default class Stream {
   }
 
   sendMessage(message) {
-    console.log("sending msg, msg=", message);
+    logger("sending msg, msg=", message);
     if (!this.isConnected) {
       this.msgs.push(message);
       return;
@@ -160,14 +167,14 @@ export default class Stream {
                  'remoteid': self.remoteId,
                  'sdp':sessionDescription});
       } else {*/
-         console.log('streamid: ' + self.streamid)
+         logger('streamid: ' + self.streamid)
          self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_SDP,
                  'streamid': self.streamid,
                  'sdp':sessionDescription});
       //}
     }
     function onError(e) {
-       console.log("failed to create sdp answer: " + e);
+       logger("failed to create sdp answer: " + e);
     }
     this.pc.setRemoteDescription(new RTCSessionDescription(msg));
     this.pc.createAnswer(setLocalAndSendMessage, onError, this.config.sdpConstraints);
@@ -175,7 +182,7 @@ export default class Stream {
 
 
   onRemoteSdp(msg) {
-     console.log("handle sdp: ", msg);
+     logger("handle sdp: ", msg);
      if (msg.type === 'offer') {
        this.doAnswer(msg);
      } else if (msg.type === 'answer') { //p2p mode: answer from our offer
@@ -184,9 +191,9 @@ export default class Stream {
        } else {
          console.error("received answer, not handled");
        }*/
-       console.error("not handle answer: " + JSON.stringify(msg));
+       console.error("not handle answer")
      } else {
-       console.error("unknown msg: " + JSON.stringify(msg));
+       console.error("unknown msg: " + JSON.stringify(msg.type));
      }
    }
 
@@ -194,24 +201,16 @@ export default class Stream {
      if (msg.type === 'candidate') {
        var candidate = new RTCIceCandidate({sdpMid: msg.sdpMid,
              sdpMLineIndex:msg.sdpMLineIndex, candidate:msg.candidate});
-       console.log("remote candidate " + JSON.stringify(candidate));
+       logger("remote candidate " + JSON.stringify(candidate));
        this.pc.addIceCandidate(candidate);
      } else {
-       //console.error("unknown candidate: " + JSON.stringify(msg));
+       console.error("unknown candidate: " + JSON.stringify(msg.type));
      }
    }
 
    handleRequest(msg) {
 
      if (msg.msgtype == globals_.SNW_MSGTYPE_ICE ) {
-       /*var streamid = msg.streamid;
-       console.warn("streamid=" + streamid);
-       var stream = this.getStreamById(streamid);
-       if (stream) {
-          stream.receiveMessage(msg);
-       } else {
-         console.warn("stream not found, id=" + streamid);
-       }*/
        switch(msg.api) {
          case globals_.SNW_ICE_SDP:
            this.onRemoteSdp(msg.sdp);
@@ -220,31 +219,19 @@ export default class Stream {
            this.onRemoteCandidate(msg.candidate);
            break;
          default:
-           console.error("unknown ice msg: ", msg);
+           console.error("unknown req msg: ", msg.api);
            break;
        }
        return;
      }
-
-     /*if (msg.msgtype == globals_.SNW_EVENT ) {
-       this.handleEvent(msg);
-       return;
-     }
-
-     if (msg.msgtype == globals_.SNW_SIG ) {
-       this.handleSigReq(msg);
-       return;
-     }*/
-
-     console.log("unknown request: " + JSON.stringify(msg));
+     console.error("unknown request: " + msg.msgtype);
   }
 
   handleResponse(msg) {
     if (msg.rc < 0) {
-      console.error("error msg: ", msg.rc);
+      console.error("error resp msg: ", msg.rc);
       return;
     }
-    console.log("response: " + JSON.stringify(msg));
   }
 
   handleMessage(evt) {
@@ -260,7 +247,7 @@ export default class Stream {
     if (this.state === 'connected') return; //already send request
 
     if (this.type === globals_.PUBLISHER_STREAM_TYPE) {
-      console.log("publishing a stream: " + this.streamid)
+      logger("publishing a stream: " + this.streamid)
       this.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_PUBLISH,
                'streamid': this.streamid});
     } else if (this.type === globals_.SUBSCRIBER_STREAM_TYPE) {
@@ -280,7 +267,6 @@ export default class Stream {
     this.broadcast('onIceDisconnected',null);
   }
 
-
   createPeerConnection(stream) {
     var self = this;
 
@@ -294,7 +280,7 @@ export default class Stream {
          var candidate = event.candidate.candidate;
 
          /*if (self.type === globals_.P2P_STREAM_TYPE) {
-            console.log('send local candidate: ' + JSON.stringify(event.candidate));
+            logger('send local candidate: ' + JSON.stringify(event.candidate));
             self.sendMessage({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_CANDIDATE,
                     'id': self.id,
                     'remoteid': self.remoteId,
@@ -314,7 +300,7 @@ export default class Stream {
          //}
       } else {
          /*if (self.type === globals_.P2P_STREAM_TYPE) {
-            console.log('no more local candidate');
+            logger('no more local candidate');
             self.sendMessage({'msgtype':globals_.SNW_SIG,'api':globals_.SNW_SIG_CANDIDATE,
                      'id': self.id, 'remoteid': self.remoteId, 'candidate':{ done: true }});
          } else {*/
@@ -326,18 +312,18 @@ export default class Stream {
     }
 
     function onaddstream(event) {
-      console.log('Remote stream added, src:' + self.remoteNode);
+      logger('Remote stream added, src:' + self.remoteNode);
       self.remoteStream = event.stream;
       if (self.remoteNode)
         self.remoteNode.srcObject = event.stream;
     }
 
     function onremovestream(event) {
-       console.log('Remote stream removed. Event: ', event);
+       logger('Remote stream removed. Event: ', event);
     }
 
     function oniceconnectionstatechange(event) {
-       console.log("ICE connection status changed : streamid="
+       logger("ICE connection status changed : streamid="
            + self.streamid + " " + event.target.iceConnectionState);
        if (event.target.iceConnectionState === "connected") {
           self.onIceConnected();
@@ -357,7 +343,7 @@ export default class Stream {
     } else if (this.localStream) {
       this.pc.addStream(this.localStream);
     } else {
-      console.warn("no local stream");
+      //console.warn("no local stream");
     }
   }
 
@@ -381,7 +367,7 @@ export default class Stream {
 
   publish(config) {
     var self = this
-    console.log("publish config: " + JSON.stringify(config))
+    logger("publish config: " + JSON.stringify(config))
     this.parseConfig(config)
     this.type = globals_.PUBLISHER_STREAM_TYPE
 
@@ -389,75 +375,70 @@ export default class Stream {
        navigator.getUserMedia(this.config.mediaConstraints, function(stream) {
          if (!stream) return
          self.localStream = stream
-         console.log('got camera stream')
+         logger('got camera stream')
          self.localNode.srcObject = stream
-         //self.broadcast("onMediaReady", stream);
 
-         //create stream id and publish
          createStreamID(self.host, 8868)
          .then(function(data) {
            var streamid = JSON.parse(data.responseText).streamid;
-           console.log('result: ' + streamid)
+           logger('result: ' + streamid)
            self.streamid = streamid
            self.type = globals_.PUBLISHER_STREAM_TYPE
-           console.log('create peer connection: ' + self.localStream)
+           logger('create peer connection: ' + self.localStream)
            self.createPeerConnection(self.localStream);
            self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_CONNECT,
                       'stream_type': self.type, 'video_codec': self.vcodec,
                       'name': 'test', 'streamid': self.streamid});
          })
          .catch(function(error) {
-           console.error('internal error: ' + error)
+           console.error('failed to create stream id: ' + error)
          })
        }, function(info) {
          console.error("failed to get media")
        });
     } else if (config.type === 'video') {
-       console.log('got video stream: ' + self.localStream)
+       logger('got video stream: ' + self.localStream)
        self.localNode.srcObject = stream
 
-       //create stream id and publish
        createStreamID(self.host, 8868)
        .then(function(data) {
          var streamid = JSON.parse(data.responseText).streamid;
-         console.log('result: ' + streamid)
+         logger('result: ' + streamid)
          self.streamid = streamid
          self.type = globals_.PUBLISHER_STREAM_TYPE
-         console.log('create peer connection: ' + self.localStream)
+         logger('create peer connection: ' + self.localStream)
          self.createPeerConnection(self.localStream);
          self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_CONNECT,
                     'stream_type': self.type, 'video_codec': self.vcodec,
                     'name': 'test', 'streamid': self.streamid});
        })
        .catch(function(error) {
-         console.error('internal error: ' + error)
+         console.error('failed to create stream id: ' + error)
        })
     }
   }
 
   play(config) {
     var self = this
-    //handle config
-    console.log("play config: " + JSON.stringify(config))
+    logger("play config: " + JSON.stringify(config))
     this.parseConfig(config)
     this.type = globals_.SUBSCRIBER_STREAM_TYPE
 
-    //create stream id and publish
     createStreamID(self.host, 8868, 'player')
     .then(function(data) {
       var streamid = JSON.parse(data.responseText).streamid;
-      console.log('result: ' + streamid)
+      logger('result: ' + streamid)
       self.streamid = streamid
-      console.log('stream: ' + self.streamid)
+      logger('stream: ' + self.streamid)
       self.type = globals_.SUBSCRIBER_STREAM_TYPE
-      console.log('create peer connection: ' + self.localStream)
+      logger('create peer connection: ' + self.localStream)
       self.createPeerConnection(self.localStream);
       self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_CONNECT,
                   'stream_type': self.type, 'video_codec': self.vcodec,
                   'streamid': self.streamid});
     })
     .catch(function(error) {
-      console.error('internal error: ' + error)
+      console.error('failed to create stream id: ' + error)
     })
   }
 
