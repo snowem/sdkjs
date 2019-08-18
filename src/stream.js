@@ -47,6 +47,14 @@ export default class Stream {
     this.socket.onopen = () => {
       this.triggerEvent('onConnected')
       this.isConnected = true
+      /*var getStreamMsg = {
+        'msgtype': globals_.SNW_MSGTYPE_ICE,
+        'api': globals_.SNW_ICE_CREATE,
+        'type': 0,
+        'jwt': 'key',
+      }
+      this.socket.send(JSON.stringify(getStreamMsg));*/
+
       for (var i = 0; i < this.msgs.length; i++) {
         logger(this.msgs[i]);
         var message = this.msgs[i];
@@ -227,10 +235,25 @@ export default class Stream {
      console.error("unknown request: " + msg.msgtype);
   }
 
+  onCreateStream(streamid) {
+    this.streamid = streamid
+    logger('create peer connection: ' + this.localStream)
+    this.createPeerConnection(this.localStream);
+    this.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_CONNECT,
+                'stream_type': this.type, 'video_codec': this.vcodec,
+                'name': 'test', 'streamid': this.streamid});
+  }
+
   handleResponse(msg) {
     if (msg.rc < 0) {
       console.error("error resp msg: ", msg.rc);
       return;
+    }
+
+    if (msg.msgtype === globals_.SNW_MSGTYPE_ICE
+      && msg.api === globals_.SNW_ICE_CREATE) {
+      logger("got streamid: ", msg.streamid);
+      this.onCreateStream(msg.streamid)
     }
   }
 
@@ -375,62 +398,41 @@ export default class Stream {
        navigator.getUserMedia(this.config.mediaConstraints, function(stream) {
          if (!stream) return
          self.localStream = stream
-         logger('got camera stream')
          self.localNode.srcObject = stream
-
-         createStreamID(self.host, 8868)
-         .then(function(data) {
-           var streamid = JSON.parse(data.responseText).streamid;
-           logger('result: ' + streamid)
-           self.streamid = streamid
-           self.type = globals_.PUBLISHER_STREAM_TYPE
-           logger('create peer connection: ' + self.localStream)
-           self.createPeerConnection(self.localStream);
-           self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_CONNECT,
-                      'stream_type': self.type, 'video_codec': self.vcodec,
-                      'name': 'test', 'streamid': self.streamid});
-         })
-         .catch(function(error) {
-           console.error('failed to create stream id: ' + error)
-         })
+         self.type = globals_.PUBLISHER_STREAM_TYPE
+         self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,
+                           'api':globals_.SNW_ICE_CREATE,
+                           'type': self.type, 'jwt': 'key'})
        }, function(info) {
-         console.error("failed to get media")
+         console.error("failed to get camera media")
        });
     } else if (config.type === 'video') {
-       logger('got video stream: ' + self.localStream)
+       if (self.localStream === null) {
+         console.warm("no local stream")
+       }
        self.localNode.srcObject = stream
-
-       createStreamID(self.host, 8868)
-       .then(function(data) {
-         var streamid = JSON.parse(data.responseText).streamid;
-         logger('result: ' + streamid)
-         self.streamid = streamid
-         self.type = globals_.PUBLISHER_STREAM_TYPE
-         logger('create peer connection: ' + self.localStream)
-         self.createPeerConnection(self.localStream);
-         self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_CONNECT,
-                    'stream_type': self.type, 'video_codec': self.vcodec,
-                    'name': 'test', 'streamid': self.streamid});
-       })
-       .catch(function(error) {
-         console.error('failed to create stream id: ' + error)
-       })
+       self.type = globals_.PUBLISHER_STREAM_TYPE
+       self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,
+                         'api':globals_.SNW_ICE_CREATE,
+                         'type': self.type, 'jwt': 'key'})
     }
   }
 
   play(config) {
-    var self = this
     logger("play config: " + JSON.stringify(config))
     this.parseConfig(config)
     this.type = globals_.SUBSCRIBER_STREAM_TYPE
+    this.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,
+                      'api':globals_.SNW_ICE_CREATE,
+                      'type': this.type, 'jwt': 'key'})
 
-    createStreamID(self.host, 8868, 'player')
+    /*createStreamID(self.host, 8868, 'player')
     .then(function(data) {
       var streamid = JSON.parse(data.responseText).streamid;
       logger('result: ' + streamid)
       self.streamid = streamid
       logger('stream: ' + self.streamid)
-      self.type = globals_.SUBSCRIBER_STREAM_TYPE
+      //self.type = globals_.SUBSCRIBER_STREAM_TYPE
       logger('create peer connection: ' + self.localStream)
       self.createPeerConnection(self.localStream);
       self.sendMessage({'msgtype':globals_.SNW_MSGTYPE_ICE,'api':globals_.SNW_ICE_CONNECT,
@@ -439,7 +441,7 @@ export default class Stream {
     })
     .catch(function(error) {
       console.error('failed to create stream id: ' + error)
-    })
+    })*/
   }
 
   close() {
