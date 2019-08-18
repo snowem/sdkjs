@@ -15,8 +15,15 @@
    <script src = "https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
    <![endif]-->
   <style media="screen" type="text/css">
-    body {
+    .background {
        background-image: url("background.png");
+    }
+    .navbackground {
+       opacity:0.8;
+       background-image: url("bg_blue.jpg");
+       background-repeat: repeat-x;/* Determine what direction the image will repeat */
+       background-position: top; /* Where the image will be positioned relative to "top, right, bottom, and/or left */
+       background-attachment: fixed; /* use with "fixed" to make it scroll with page */
     }
     .snowbox {
        width:280px !important;
@@ -76,99 +83,315 @@
   <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
 </head>
 
-<body>
+<body class="background">
 
-    <section id="snowem" class="wow fadeInUp" style="bottom-top: 0px; bottom-top: 0px;">
-      <div class="container">
-       <h2 class="snow-highlight text-center">Welcome to Snowem Demo Page!</h2>
-       <p>A simple demo which allows you publish your local camera (or video file) and play remote streams.</p>
-       <p><span style="font-weight:bold">Source code</span> of this page is availabe at <a href="https://github.com/snowem/sdkjs/example">here</a>.</p>
-       <hr/>
-      </div>
-    </section>
+<nav class="navbackground navbar navbar-expand-lg navbar-dark">
+  <a class="navbar-brand" href="#">Snowem</a>
+  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+  <div class="collapse navbar-collapse" id="navbarNav">
+    <ul class="nav navbar-nav ml-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#intro">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#demo">Demo</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#docs">Get started</a>
+      </li>
+    </ul>
+  </div>
+</nav>
 
-    <section id="about" class="wow fadeInUp" style="bottom-top: 0px; bottom-top: 0px;">
-      <div class="container">
+<section id="demo" style="bottom-top: 0px; bottom-top: 0px; padding-top: 10px; padding-bottom: 10px;">
+  <div class="container">
+    <h5 class="title"><a href="">Demo Web Application</a></h5>
+    <p>A simple demo </span> which allows you publish your local camera (or video file) and play remote streams.</p>
+   <p><span style="font-weight:bold">Source code</span> of this page is availabe at <a href="https://github.com/snowem/sdkjs/example">here</a>.</p>
+   <hr/>
+  </div>
 
-        <div class="row">
+  <div class="container">
+    <div class="row">
 
-          <div class="col-md-6">
-            <h4>Demo Web Application</h4>
-            <div id="joinedRoomSectionId">
-              <p><span>Publish your local camera. If no camera available, a sample video will be played.</span></p>
-            </div>
-            <button id="publishCameraBtn" type="button" class="btn-get-started">Publish Stream</button>
-          </div>
-          <div class="col-md-6">
-            <h4>&nbsp;</h4>
-            <p><span>Enter stream id of a published stream to play it.</span></p>
-            <div id="playStreamSectionId" class="text-left">
-             <input type="text" id="playStreamId" placeholder="Enter a stream id" style="width:70%;">
-             <button id="playStreamBtn" type="button" class="btn-get-started">Play Stream</button>
-            </div>
-          </div>
-
+      <div class="col-md-6">
+        <div id="joinedRoomSectionId">
+          <p><span>Publish your local camera. If no camera available, a sample video will be played.</span></p>
         </div>
-
-        <hr/>
+        <button id="publishCameraBtn" type="button" class="btn-get-started">Publish Stream</button>
       </div>
-    </section><!-- #about -->
-
-    <section id="services" style="margin-top: 0px; padding-top: 0px;">
-      <div class="container">
-
-        <div id="streamBoxId" class="row">
-
-          <div id="templateVideoBoxId">
-            <div id="videoBoxId" class="col-lg-4 col-md-6 col-xs-12">
-              <div class="adeInLeft">
-                <div id="playDiv" class="snowbox">
-                 <div class="videobox">
-                   <div class="overlay"><span id="remoteStreamId">Remote stream</span></div>
-                   <div class="overlay-right"><button type="button" id="closeRemoteStreamId">X</button></div>
-                   <video id="remoteVideo" class="snowvideo" autoplay="none" preload="none"> </video>
-                 </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div id="fileVideoId" class="col-lg-4 col-md-6 col-xs-12">
-            <div class="adeInLeft">
-              <div id="fileVideoDiv" class="snowbox">
-               <div class="videobox">
-                 <video id="fileVideo" class="snowvideo" loop controls>
-                   <source src="sample.webm" type="video/webm"/>
-                 </video>
-               </div>
-              </div>
-              <div class="text-center"> <span class="title">Local stream</span></div>
-            </div>
-          </div>
-
-          <div class="col-lg-4 col-md-6 col-xs-12">
-            <div class="adeInLeft">
-              <div id="publishVideoDiv" text-center>
-                <div id="publishDiv" class="snowbox">
-                  <div class="videobox">
-                    <div class="overlay"><span id='localStreamId'>Local camera</span></div>
-                    <div class="overlay-right"><button type="button" id="closeLocalStreamId">X</button></div>
-                    <video id='localVideo' class="snowvideo" muted autoplay="none" preload="none"> </video> 
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
+      <div class="col-md-6">
+        <p><span>Enter stream id of a published stream to play it.</span></p>
+        <div id="playStreamSectionId" class="text-left">
+         <input type="text" id="playStreamId" placeholder="Enter a stream id" style="width:70%;">
+         <button id="playStreamBtn" type="button" class="btn-get-started">Play Stream</button>
         </div>
-        <hr/>
       </div>
-    </section>
 
-<footer id='footer' class="footer fixed-bottom">
-    <div class="container text-center">
-        <small class="copyright">Designed by <a href="#" target="_blank">Snowem Team</a>.</small>
     </div>
+  </div>
+</section><!-- #about -->
+
+<section id="services" style="margin-top: 0px; padding-top: 0px;">
+  <div class="container">
+
+    <div id="streamBoxId" class="row">
+
+      <div id="templateVideoBoxId">
+        <div id="videoBoxId" class="col-lg-4 col-md-6 col-xs-12">
+          <div class="adeInLeft">
+            <div id="playDiv" class="snowbox">
+             <div class="videobox">
+               <div class="overlay"><span id="remoteStreamId">Remote stream</span></div>
+               <div class="overlay-right"><button type="button" id="closeRemoteStreamId">X</button></div>
+               <video id="remoteVideo" class="snowvideo" autoplay="none" preload="none"> </video>
+             </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="fileVideoId" class="col-lg-4 col-md-6 col-xs-12">
+        <div class="adeInLeft">
+          <div id="fileVideoDiv" class="snowbox">
+           <div class="videobox">
+             <video id="fileVideo" class="snowvideo" loop controls>
+               <source src="sample.webm" type="video/webm"/>
+             </video>
+           </div>
+          </div>
+          <div class="text-center"> <span class="title">Local stream</span></div>
+        </div>
+      </div>
+
+      <div class="col-lg-4 col-md-6 col-xs-12">
+        <div class="adeInLeft">
+          <div id="publishVideoDiv" text-center>
+            <div id="publishDiv" class="snowbox">
+              <div class="videobox">
+                <div class="overlay"><span id='localStreamId'>Local camera</span></div>
+                <div class="overlay-right"><button type="button" id="closeLocalStreamId">X</button></div>
+                <video id='localVideo' class="snowvideo" muted autoplay="none" preload="none"> </video> 
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <hr/>
+  </div>
+</section>
+
+<section id="intro" class="wow fadeInUp" style="padding-top: 10px; bottom-top: 0px; bottom-top: 0px;">
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-6 col-md-6 col-xs-12 content">
+        <h5 class="title"><a href="">What's Snowem?</a></h5>
+        <p>Snowem is a lightweight live streaming platform. Its design mainly focuses on simplicity, scalability and high performance.</p>
+      </div>
+      <div class="col-lg-6 col-md-6 col-xs-12 content">
+        <ul>
+          <li><i class="ion-android-checkmark-circle"></i> Build on top of cutting-edge WebRTC technology.</li>
+          <li><i class="ion-android-checkmark-circle"></i> High performance and scalable design.</li>
+          <li><i class="ion-android-checkmark-circle"></i> Support multiple of platforms.</li>
+        </ul>
+      </div>
+    </div>
+    <hr>
+
+    <div class="row">
+          <div class="col-lg-6">
+            <div class="box wow fadeInLeft">
+              <div class="icon"><i class="fa fa-users"></i></div>
+              <h6 class="title"><a href="">Designed for Developers</a></h6>
+              <p class="description">Simple API to easily integrate media streams into applications.</p>
+            </div>
+          </div>
+
+          <div class="col-lg-6">
+            <div class="box wow fadeInRight" data-wow-delay="0.2s">
+              <div class="icon"><i class="fa fa-code"></i></div>
+              <h6 class="title"><a href="">Cross Platform</a></h6>
+              <p class="description">Provide various client SDKs for web browsers, Android and iOS.</p>
+            </div>
+          </div>
+
+          <div class="col-lg-6">
+            <div class="box wow fadeInLeft" data-wow-delay="0.2s">
+              <div class="icon"><i class="fa fa-video-camera"></i></div>
+              <h6 class="title"><a href="">Realtime Communication</a></h6>
+              <p class="description">Support video call, video conference and video broadcasting.</p>
+            </div>
+          </div>
+
+          <div class="col-lg-6">
+            <div class="box wow fadeInRight">
+              <div class="icon"><i class="fa fa-bar-chart"></i></div>
+              <h6 class="title"><a href="">High Performance</a></h6>
+              <p class="description">Snowem streaming server is written in C to achieve excellent performance under highload.</p>
+            </div>
+          </div>
+    </div>
+
+  </div>
+</section>
+
+<section id="docs" class="wow fadeInUp" style="bottom-top: 0px; bottom-top: 0px;">
+  <div class="container">
+   <h5 class="title"><a href="">Get Started</a></h5>
+   <p>Snowem implement a simple model of publish/play streams. One can push a stream to snowem server and play a stream from it.This simplicity leaves stream management to developers. The above demo web application is a good example of this design.</p>
+  </div>
+  <hr/>
+
+  <div class="container">
+    <div class="row">
+      <div class="col-xs-12 col-md-12">
+        <div id="install">
+          <p><span>To install and setup snowem, check details at <a href="#">this guide</a>.</span></p>
+        </div>
+      </div>
+    </div>
+    <hr/>
+
+    <div class="row">
+      <div class="col-md-6 col-xs-12">
+        <div id="publish">
+          <p><span>To publish a stream, one needs to create stream object and publish media source to snowem server. Media sources could be camera source or media source from video tag.</span></p>
+          <p> In the example code, camera is used as media source which contains both audio and video. <code>localNode</code> is defined, it  will display camera source.
+          </p>
+        </div>
+      </div>
+      <div class="col-md-6 col-xs-12">
+        <div id="design-code" class="text-left">
+          <pre><code>
+var host = "localhost"
+var config = {
+  'type': 'camera',
+  'localNode': document.getElementById('localVideo'),
+  'mediaConstraints': {
+    'audio': true,
+    'video': true,
+  },
+}
+var publishStream = new snowem.Stream(host, 8443)
+publishStream.publish(config)
+          </code></pre>
+        </div>
+      </div>
+    </div>
+    <hr/>
+
+    <div class="row">
+      <div class="col-md-6 col-xs-12">
+        <div id="play">
+          <p><span>To play a stream, one needs <code>streamid</code> of published stream.</span></p>
+          <p><span>If <code>remoteNode</code> is defined, it will display remote published stream.</span></p>
+        </div>
+      </div>
+      <div class="col-md-6 col-xs-12">
+        <div id="publish-code" class="text-left">
+          <pre><code>
+var streamid = publishedStream.getStreamID()
+var config = {
+  'streamid': streamId,
+  'remoteNode':  document.getElementById('remoteVideo'),
+  'mediaConstraints': {
+    'audio': true,
+    'video': true
+  }
+ };
+var playStream = new snowem.Stream(host, 8443)
+playStream.play(config)
+          </code></pre>
+        </div>
+      </div>
+    </div>
+    <hr/>
+
+    <div class="row">
+      <div class="col-md-6">
+        <div id="config">
+          <p><span><code>config</code> given to a stream has the following fields:</span></p>
+          <ul>
+            <li><code>type</code>: type of media source, i.e. 'camera' or 'video'. <code></code> of 'video' needs to provide <code>localStream</code> (only for publishing a stream).</li>
+            <li><code>streamid</code>: streamid of published stream.</li>
+            <li><code>localStream</code>: <code>MediaStream</code> object contains media source. Valid for <code>type</code> of 'video'.</li>
+            <li><code>localNode</code>: <code>Element</code> object of video tag to display local media source.</li>
+            <li><code>remoteNode</code>: <code>Element</code> object of video tag to display media source from publilshed stream.</li>
+            <li><code>meidaConstraints</code>: WebRTC configuration for media source from camera <a href="https://www.w3.org/TR/mediacapture-streams/#dom-mediadevices-getusermedia">Here</a> for details.</li>
+            <li><code>pcConfig</code>: Peer connection configuration, i.e. stun/turn servers. <a href="https://www.w3.org/TR/webrtc/#dom-rtcconfiguration">Here</a> for details.</li>
+            <li><code>sdpConstraints</code>: SDP constraints on media stream when creating SDP offer/answer. <a href="https://www.w3.org/TR/webrtc/#rtcpeerconnection-interface">Here</a> for details.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div id="play-code" class="text-left">
+          <pre></code>
+var config = {
+  'type': 'camera',
+  'streamid': streamid,
+  'localStream': stream,
+  'localNode': document.getElementById('localeVideo'),
+  'remoteNode': document.getElementById('remoteVideo'),
+  'mediaConstraints': {
+    'audio': true,
+    'video': true,
+  },
+  'pcConfig': {
+    'iceServers':[{'urls':'stun:stun3.l.google.com:19302'}],
+    'iceTransports': 'all'
+  },
+  'sdpConstraints': {
+    'mandatory': {
+      'OfferToReceiveAudio':true,
+      'OfferToReceiveVideo':true,
+    }
+  },
+}
+          </code></pre>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section><!-- #about -->
+
+<hr/>
+<footer class="page-footer font-small blue pt-4">
+  <div class="container-fluid text-center text-md-left">
+    <div class="row">
+      <div class="col-md-6 mt-md-0 mt-3">
+        <ul class="list-unstyled">
+          <li>
+            Source code available at <a href="https://https://github.com/snowem">Github</a>
+          </li>
+          <li>
+            Source code of <a href="https://https://github.com/snowem/snowem">snowem server</a>
+          </li>
+          <li>
+            Source code of <a href="https://https://github.com/snowem/sdkjs">Javascript sdk</a>
+          </li>
+        </ul>
+
+      </div>
+      <hr class="clearfix w-100 d-md-none pb-3">
+
+      <div class="col-md-3 mb-md-0 mb-3">
+        <div class="footer-copyright text-center py-3">© 2019 Copyright:
+          <a href="#">snowem.io</a>
+        </div>
+      </div>
+
+      <div class="col-md-3 mb-md-0 mb-3">
+          <!-- nothing-->
+      </div>
+
+    </div>
+  </div>
+
 </footer>
 
 <!-- Custom Scripts -->

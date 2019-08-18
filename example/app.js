@@ -8,29 +8,6 @@ $('#publishVideoDiv').hide();
 $('#localStreamId').hide();
 $('#fileVideoId').hide();
 
-function onElementHeightChange(elm, callback){
-    var lastHeight = elm.clientHeight, newHeight;
-    (function run(){
-        newHeight = elm.clientHeight;
-        if( lastHeight != newHeight )
-            callback(newHeight);
-        lastHeight = newHeight;
-
-        if( elm.onElementHeightChangeTimer )
-            clearTimeout(elm.onElementHeightChangeTimer);
-
-        elm.onElementHeightChangeTimer = setTimeout(run, 200);
-    })();
-}
-
-onElementHeightChange(document.body, function(h){
-  if(h < window.screen.width){
-    $('#footer').removeClass('fixed-bottom')
-  } else  {
-    $('#footer').addClass('fixed-bottom')
-  }
-});
-
 function maybeCreateStream() {
   if (stream) {
     return;
@@ -136,18 +113,12 @@ $('#publishCameraBtn').click(function() {
         console.error('failed to play video')
       });
     }
-
   }
   var config = {
     'type': type,
     'localStream': localStream,
     'localNode': document.getElementById('localVideo'),
     'remoteNode':  document.getElementById('remoteVideo'),
-    'media': {
-      'audio': true,
-      'video': true,
-      'data': true,
-    },
     'mediaConstraints': {
       'audio': true,
       'video': {
