@@ -293,7 +293,7 @@ export default class Stream {
   createPeerConnection(stream) {
     var self = this;
 
-    this.pc = new RTCPeerConnection(this.config.pcConfig, this.config.sdpConstraints)
+    this.pc = new RTCPeerConnection(this.config.pcConfig)
 
     function onicecandidate(event) {
       if (event.candidate) {
