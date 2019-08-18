@@ -68,6 +68,13 @@ function createVideoBox(name, streamid) {
 }
 
 $('#playStreamBtn').click(function() {
+
+  var streamId = parseInt($('#playStreamId').val())
+  if (isNaN(streamId)) {
+    console.error("invalid stream id")
+    return
+  }
+
   var playStream = new snowem.Stream(host, 8443)
   playStream.listen('onIceConnected', function(msg) {
     //ice connection established
@@ -76,7 +83,6 @@ $('#playStreamBtn').click(function() {
     //ice connection closed
   });
 
-  var streamId = parseInt($('#playStreamId').val())
   var streamName = playStream.getStreamName()
   createVideoBox(streamName, streamId)
   var config = {
