@@ -1,4 +1,4 @@
-var host = 'localhost'
+var host = 'localhost';
 var fileVideo = document.getElementById('fileVideo');
 var hasWebcam = false
 var stream = null
@@ -98,6 +98,7 @@ $('#playStreamBtn').click(function() {
 });
 
 $('#publishCameraBtn').click(function() {
+  document.getElementById('localBoxId').style.display = 'block';
   var type = 'camera'
   var localStream = null
   if (!hasWebcam) {
@@ -148,6 +149,7 @@ $('#publishCameraBtn').click(function() {
 
   $('#closeLocalStreamId').click(function()  {
     console.log('close published stream')
+    document.getElementById('localBoxId').style.display = 'none';
     publishStream.close()
     $('#publishVideoDiv').hide();
   });

@@ -9,7 +9,8 @@
     "build": "webpack --env build",
     "server:webpack": "webpack --watch",
     "server:run": "http-server ./example -S -C ./example/example.crt -K ./example/example.key",
-    "dev": "npm-run-all --parallel server:*"
+    "dev": "npm-run-all --parallel server:*",
+    "test": "http-server ./example"
   },
   "keywords": [],
   "author": "",
